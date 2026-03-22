@@ -1,54 +1,67 @@
-# [Fenestra][github-project]
+# Fenestra (VoliEdition)
 
-[![Discord Server][discord-badge]][discord-url]
-[![Continuous Integration][build-status-badge]][build-status-url]
-[![GitHub Contributors][contributors-badge]][contributors-url]
-[![GitHub Stars][stars-badge]][stars-url]
-[![GitHub Forks][forks-badge]][forks-url]
+![Fenestra Banner](https://github.com/Windower/Fenestra/raw/media/banner.png)
 
-![Fenestra][banner]
+Fenestra is the next-generation, open-source development version of Windower. Originally designed as the successor to Windower 4, Fenestra provides a modern, highly optimized architecture for extending Final Fantasy XI with custom UI elements, macros, packet manipulation, and Lua-based addons.
 
-Fenestra is the open-source development version of [Windower][windower-homepage].
+## 🏗 Architecture Overview
 
-All new features and bug fixes for the official builds of Windower are worked on here.
+```mermaid
+graph TD
+    subgraph Host System
+        A[Fenestra Launcher <br> C# / WPF] -->|Reads| B[(Profiles & Settings)]
+        A -->|Named Pipes RPC| C
+    end
 
-<!--
-## Contributing
+    subgraph Target Game Process pol.exe
+        A -.->|Injects core.dll| C(Fenestra Core <br> C++)
+        
+        C --> D[Hooking Engine <br> D3D8, DInput, Kernel32]
+        C --> E[Packet Queue <br> Incoming/Outgoing FFXI Data]
+        C --> F[UI & Rendering Engine]
+        C --> G[Lua Script Environment <br> LuaJIT]
+        
+        G --> H[Addons & Modules]
+        
+        D -.->|Intercepts| I[Final Fantasy XI Client]
+        E -.->|Manipulates| I
+        F -.->|Overlays| I
+    end
+```
 
-All contributions are welcome. Learn more about contributing in
-the [CONTRIBUTING][contributing] file.
+Fenestra is split into two primary components to ensure stability, performance, and maintainability:
 
-Not sure what to contribute? Check out the [GitHub "contribute" page][contribute]
--->
+1. **The Launcher (`/launcher`) - C# / WPF**
+   - A modern desktop application responsible for managing user profiles, settings, and updates.
+   - Handles the complex logic of locating the PlayOnline/FFXI installation (including Steam detection).
+   - Manages process elevation and securely injects the Core DLL into the target game process.
+   - Communicates with the injected core via Named Pipes (RPC).
 
-## Contact
+2. **The Core (`/core`) - C++**
+   - The heavily optimized injected payload (`core.dll`).
+   - **Hooking Engine:** Intercepts DirectX (D3D8), DirectInput, and core Windows APIs to overlay custom graphics and capture user input without modifying game files.
+   - **Packet Manager:** Safely intercepts and manipulates incoming and outgoing network data.
+   - **Lua Environment:** Embeds LuaJIT to run custom Addons and scripts with near-native performance.
+   - **UI Engine:** A custom rendering engine for drawing text, shapes, and complex UI widgets directly onto the game window.
 
-You can chat with the Windower dev team and users on our community [Discord server][discord-url].
+## 📂 Directory Structure
 
-## License
+* `/launcher/` - C# WPF application for the Fenestra Launcher.
+* `/core/` - C++ source code for the injected `core.dll`.
+  * `/core/src/addon/` - Lua environment and addon management.
+  * `/core/src/hooks/` - API hooks for D3D8, DirectInput, user32, etc.
+  * `/core/src/ui/` - Internal rendering engine and interactive widgets.
+* `/extern/` - External dependencies (e.g., LuaJIT).
+* `/installer/` - WiX toolset files for generating Windows installers.
 
-This project uses the [MIT][license] license.
+## 🚀 Getting Started
 
-<!-- References -->
+*(Instructions for building the project will go here. E.g., Visual Studio requirements, vcpkg setup for C++ dependencies, and .NET SDK versions.)*
 
-[github-project]: https://github.com/Windower/Fenestra
-[windower-homepage]: https://www.windower.net
+## 📜 License
 
-[banner]: https://github.com/Windower/Fenestra/raw/media/banner.png
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
-[contributing]: ./CONTRIBUTING.md
-[contribute]: https://github.com/Windower/Fenestra/contribute
+## 🤝 Contributing
 
-[license]: ./LICENSE.md
-
-[discord-url]: https://discord.gg/2wCMexS
-[build-status-url]: https://github.com/Windower/Fenestra/actions/workflows/ci.yml
-[contributors-url]: https://github.com/Windower/Fenestra/graphs/contributors
-[stars-url]: https://github.com/Windower/Fenestra/stargazers
-[forks-url]: https://github.com/Windower/Fenestra/network/members
-
-[discord-badge]: https://img.shields.io/discord/338590234235371531.svg?logo=discord&logoColor=white&colorB=7289da
-[build-status-badge]: https://github.com/Windower/Fenestra/actions/workflows/ci.yml/badge.svg?branch=main
-[contributors-badge]: https://img.shields.io/github/contributors/Windower/Fenestra
-[stars-badge]: https://img.shields.io/github/stars/Windower/Fenestra
-[forks-badge]: https://img.shields.io/github/forks/Windower/Fenestra
+All contributions are welcome! Whether you are looking to write C++ hooks, improve the C# launcher UI, or develop Lua addons, feel free to fork the repository and submit a pull request.
