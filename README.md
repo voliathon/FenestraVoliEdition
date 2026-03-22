@@ -61,7 +61,3 @@ Fenestra is split into two primary components to ensure stability, performance, 
 ## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
-
-## 🤝 Contributing
-
-All contributions are welcome! Whether you are looking to write C++ hooks, improve the C# launcher UI, or develop Lua addons, feel free to fork the repository and submit a pull request.
