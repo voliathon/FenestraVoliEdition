@@ -593,10 +593,10 @@ void const* windower::ffximain::menu(
 {
     for (auto it = hooks::menu_ptr; it && it->data; std::advance(it, 1))
     {
-        auto const name_ptr  = static_cast<char8_t const*>(it->name);
-        auto const name_size = std::size(it->name);
-        auto const type_ptr  = static_cast<char8_t const*>(it->type);
-        auto const type_size = std::size(it->type);
+        auto const name_ptr      = static_cast<char8_t const*>(it->name);
+        constexpr auto name_size = sizeof(it->name) / sizeof(it->name[0]);
+        auto const type_ptr      = static_cast<char8_t const*>(it->type);
+        constexpr auto type_size = sizeof(it->type) / sizeof(it->type[0]);
 
         if (std::u8string_view{name_ptr, name_size} == name &&
             std::u8string_view{type_ptr, type_size} == type)
