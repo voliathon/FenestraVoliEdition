@@ -28,6 +28,7 @@
 #include "core.hpp"
 #include "downloader.hpp"
 #include "utilities/xml.hpp"
+#include "utilities/coroutine.hpp"
 #include "utility.hpp"
 
 #include <windows.h>

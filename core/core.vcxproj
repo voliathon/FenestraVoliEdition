@@ -153,6 +153,7 @@
     <ClInclude Include="src\ui\window.hpp" />
     <ClInclude Include="src\ui\window_manager.hpp" />
     <ClInclude Include="src\unicode.hpp" />
+    <ClInclude Include="src\utilities\coroutine.hpp" />
     <ClInclude Include="src\utilities\null_output.hpp" />
     <ClInclude Include="src\utilities\xml.hpp" />
     <ClInclude Include="src\utility.hpp" />
@@ -397,7 +398,7 @@
       <EnablePREfast>true</EnablePREfast>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>/await /utf-8 /Zc:externConstexpr /Zc:throwingNew /Zc:__cplusplus</AdditionalOptions>
+      <AdditionalOptions>/utf-8 /Zc:externConstexpr /Zc:throwingNew /Zc:__cplusplus</AdditionalOptions>
       <ExceptionHandling>Async</ExceptionHandling>
       <ObjectFileName>$(IntDir)\%(RelativeDir)</ObjectFileName>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -431,7 +432,7 @@
       <EnablePREfast>true</EnablePREfast>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>/await /utf-8 /Zc:externConstexpr /Zc:throwingNew /Zc:__cplusplus</AdditionalOptions>
+      <AdditionalOptions>/utf-8 /Zc:externConstexpr /Zc:throwingNew /Zc:__cplusplus</AdditionalOptions>
       <OmitFramePointers />
       <DisableSpecificWarnings>
       </DisableSpecificWarnings>
