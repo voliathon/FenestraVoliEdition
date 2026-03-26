@@ -198,7 +198,7 @@ private:
 inline namespace signature_literals
 {
 
-consteval signature operator"" _sig(char8_t const* string, std::size_t size)
+consteval signature operator ""_sig(char8_t const* string, std::size_t size)
 {
     return signature{std::u8string_view{string, size}};
 }

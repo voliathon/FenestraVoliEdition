@@ -20,13 +20,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UsedebugLibraries>true</UsedebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UsedebugLibraries>false</UsedebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -81,7 +81,7 @@
       <Arguments ParameterType="System.String" />
     </ParameterGroup>
     <Task>
-      <Using Namespace="System.Text.RegularExpressions"/>
+      <Using Namespace="System.Text.RegularExpressions" />
       <Code Type="Fragment" Language="cs">
         var compilePattern = new Regex(@"^@set LJCOMPILE=cl\b");
         var linkPattern = new Regex(@"^@set LJLINK=link\b");

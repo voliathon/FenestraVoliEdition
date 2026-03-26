@@ -28,6 +28,7 @@
 #include "core.hpp"
 #include "downloader.hpp"
 #include "utilities/xml.hpp"
+#include "utilities/coroutine.hpp"
 #include "utility.hpp"
 
 #include <windows.h>
@@ -594,9 +595,9 @@ std::future<void> windower::package_manager::update_sources(bool force)
     {}
 
     std::vector<downloader::file> files;
-    for (auto source : m_package_sources)
+    for (auto const& source : m_package_sources)
     {
-        auto url  = source.url;
+        auto url{source.url};
         auto path = staging_path / source.guid;
         if (url.empty() || url.back() != u8'/')
         {
@@ -650,7 +651,7 @@ windower::package_manager::update_source(source source, bool force)
 
     std::vector<downloader::file> files;
     {
-        auto url  = source.url;
+        auto url{source.url};
         auto path = staging_path / source.guid;
         if (url.empty() || url.back() != u8'/')
         {
@@ -766,7 +767,7 @@ windower::package_manager::install_or_update(
         std::vector<downloader::job> jobs;
         for (auto const& p : packages)
         {
-            auto root_url = p.root_url;
+            auto root_url{p.root_url};
             if (root_url.empty() || root_url.back() != u8'/')
             {
                 root_url.append(1, u8'/');
@@ -776,7 +777,8 @@ windower::package_manager::install_or_update(
             for (auto const& file : p.files)
             {
                 auto url  = root_url + file.generic_u8string();
-                auto path = (staging_path / file).make_preferred();
+                auto path = staging_path / file;
+                path.make_preferred();
                 fs::create_directories(path.parent_path());
                 auto const time =
                     last_modified(m_installed_package_directory / file, force);
@@ -801,7 +803,7 @@ windower::package_manager::install_or_update(
                                    it2->name + u8"\"";
                     if (windower::core::instance().settings.verbose_logging)
                     {
-                        for (auto r : results)
+                        for (auto const& r : results)
                         {
                             ::check(r);
                         }
@@ -828,7 +830,7 @@ windower::package_manager::install_or_update(
                     }
 
                     std::lock_guard<std::mutex> lock{m_mutex};
-                    for (auto r : results)
+                    for (auto const& r : results)
                     {
                         auto path = m_installed_package_directory /
                                     relative(r.file().path, staging_path);
