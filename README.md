@@ -1,62 +1,45 @@
-# Fenestra (VoliEdition)
+# Windower 5 Launcher (Voli Edition .NET8)
 
-![Fenestra Banner](https://github.com/Windower/Fenestra/raw/media/banner.png)
+A modernized, high-performance launcher and injector for Final Fantasy XI and the PlayOnline Viewer. 
 
-Fenestra is the next-generation, open-source development version of Windower. Originally designed as the successor to Windower 4, Fenestra provides a modern, highly optimized architecture for extending Final Fantasy XI with custom UI elements, macros, packet manipulation, and Lua-based addons.
+This project manages game profiles, automatically handles required system dependencies (like DirectPlay), provides a seamless User Interface for configuration, and securely injects the core Windower DLLs into the game process.
 
-## 🏗 Architecture Overview
+## Features
 
-```mermaid
-graph TD
-    subgraph Host System
-        A[Fenestra Launcher <br> C# / WPF] -->|Reads| B[(Profiles & Settings)]
-        A -->|Named Pipes RPC| C
-    end
+* **Profile Management:** Create, save, and manage multiple launch profiles with custom resolutions, UI scales, and executable arguments.
+* **Modern .NET 8 Architecture:** Fully upgraded to .NET 8.0 for improved performance, security, and cross-platform compatibility foundations.
+* **Smart Injection:** Bypasses standard execution to launch the game in a suspended state, allowing the Windower core to inject seamlessly before the game boots.
+* **Secure Privilege Elevation:** Uses a robust, custom Named-Pipe RPC system to safely request Administrator privileges only when necessary (e.g., for writing to protected directories or injecting into elevated processes).
+* **Automatic Dependency Resolution:** Detects missing Windows features like DirectPlay and automatically prompts the user to install them via DISM.
+* **Steam Integration:** Automatically detects Steam installations of Final Fantasy XI and routes the launch sequence through the correct AppID.
+* **Integrated Crash Reporting:** Captures unhandled exceptions, generates detailed environment logs, creates crash dumps, and packages them into clean `.zip` reports for debugging.
 
-    subgraph Target Game Process pol.exe
-        A -.->|Injects core.dll| C(Fenestra Core <br> C++)
-        
-        C --> D[Hooking Engine <br> D3D8, DInput, Kernel32]
-        C --> E[Packet Queue <br> Incoming/Outgoing FFXI Data]
-        C --> F[UI & Rendering Engine]
-        C --> G[Lua Script Environment <br> LuaJIT]
-        
-        G --> H[Addons & Modules]
-        
-        D -.->|Intercepts| I[Final Fantasy XI Client]
-        E -.->|Manipulates| I
-        F -.->|Overlays| I
-    end
-```
+## Prerequisites
 
-Fenestra is split into two primary components to ensure stability, performance, and maintainability:
+To run or build the launcher, you will need the following installed:
 
-1. **The Launcher (`/launcher`) - C# / WPF**
-   - A modern desktop application responsible for managing user profiles, settings, and updates.
-   - Handles the complex logic of locating the PlayOnline/FFXI installation (including Steam detection).
-   - Manages process elevation and securely injects the Core DLL into the target game process.
-   - Communicates with the injected core via Named Pipes (RPC).
+* **OS:** Windows 10 or later (64-bit recommended)
+* **Runtime:** [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+* **IDE (For Developers):** Visual Studio 2022 (Version 17.8 or later)
 
-2. **The Core (`/core`) - C++**
-   - The heavily optimized injected payload (`core.dll`).
-   - **Hooking Engine:** Intercepts DirectX (D3D8), DirectInput, and core Windows APIs to overlay custom graphics and capture user input without modifying game files.
-   - **Packet Manager:** Safely intercepts and manipulates incoming and outgoing network data.
-   - **Lua Environment:** Embeds LuaJIT to run custom Addons and scripts with near-native performance.
-   - **UI Engine:** A custom rendering engine for drawing text, shapes, and complex UI widgets directly onto the game window.
+## Building the Project
 
-## 📂 Directory Structure
+The build system has been modernized to use SDK-style projects while maintaining predictable output directories.
 
-* `/launcher/` - C# WPF application for the Fenestra Launcher.
-* `/core/` - C++ source code for the injected `core.dll`.
-  * `/core/src/addon/` - Lua environment and addon management.
-  * `/core/src/hooks/` - API hooks for D3D8, DirectInput, user32, etc.
-  * `/core/src/ui/` - Internal rendering engine and interactive widgets.
-* `/extern/` - External dependencies (e.g., LuaJIT).
-* `/installer/` - WiX toolset files for generating Windows installers.
+1. Open the solution file in Visual Studio 2022.
+2. Ensure your active configuration is set to **Debug** or **Release** (Any CPU).
+3. Right-click the Solution in the Solution Explorer and select **Restore NuGet Packages**.
+4. Click **Build > Rebuild Solution**.
 
-## 🚀 Getting Started
+All compiled binaries, including the launcher and core DLLs, will be output directly to the `build\bin\<Configuration>\` directory.
 
-*(Instructions for building the project will go here. E.g., Visual Studio requirements, vcpkg setup for C++ dependencies, and .NET SDK versions.)*
+## Recent Technical Updates
+
+* **Networking Modernization:** Replaced obsolete `WebRequest` and `WebClient` APIs with a static, high-performance `HttpClient` implementation for the auto-updater.
+* **Pathing & Reflection:** Migrated away from legacy `Assembly.EscapedCodeBase` and `Uri` wrappers in favor of direct `.Location` and `Environment.ProcessPath` calls.
+* **Security & Execution:** Updated `Process.Start` calls to explicitly utilize `UseShellExecute = true` where appropriate, ensuring User Account Control (UAC) prompts and OS-level file associations function correctly under .NET 8 security policies.
+* **Inter-Process Communication (IPC):** Hardened the Named Pipe RPC system. `BinaryFormatter` is now strictly configured to safely pass plain-text method signatures and primitive arguments across the pipe, bypassing modern .NET restrictions on serializing reflection objects like `MethodInfo`.
+
 
 ## 📜 License
 
