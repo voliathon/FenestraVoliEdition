@@ -31,6 +31,7 @@ namespace Windower.Core
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Net.Http;
     using System.Reflection;
     using System.Text.RegularExpressions;
     using System.Threading;
@@ -42,6 +43,20 @@ namespace Windower.Core
         private static readonly Lazy<string> LazyUserAgent = new Lazy<string>(GetUserAgent);
         private static readonly Lazy<string> LazyUserAgentName = new Lazy<string>(GetUserAgentName);
         private static readonly Lazy<string> LazyUserAgentVersion = new Lazy<string>(GetUserAgentVersion);
+
+        // Modern .NET 8 HttpClient Implementation
+        private static readonly Lazy<HttpClient> LazyHttpClient = new Lazy<HttpClient>(() =>
+        {
+            var handler = new HttpClientHandler
+            {
+                AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip
+            };
+            var client = new HttpClient(handler);
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", UserAgent);
+            return client;
+        });
+
+        private static HttpClient HttpClient => LazyHttpClient.Value;
 
 #if WINDOWER_RELEASE_BUILD
         private const string updateUrl = "https://files.windower.net/5/core/release/";
@@ -108,8 +123,7 @@ namespace Windower.Core
             if (await InstallUpdatesAsync(launcherTempPath, coreTempPath))
             {
                 progress?.Report(ProgressDetail.Create(0, 0, UpdateStatus.Restarting));
-                Process.Start(new Uri(typeof(Launcher).Assembly.EscapedCodeBase).LocalPath,
-                    EscapeArguments(Environment.GetCommandLineArgs().Skip(1)));
+                Process.Start(Environment.ProcessPath, EscapeArguments(Environment.GetCommandLineArgs().Skip(1)));
                 Environment.Exit(0);
             }
 #endif
@@ -128,7 +142,7 @@ namespace Windower.Core
 
             try
             {
-                var launcherPath = new Uri(typeof(Launcher).Assembly.EscapedCodeBase).LocalPath;
+                var launcherPath = typeof(Launcher).Assembly.Location;
                 var deletePendingPath = Path.Combine(Path.GetDirectoryName(launcherPath), "delete_pending");
                 var start = DateTime.Now;
                 while ((DateTime.Now - start) < TimeSpan.FromMinutes(1) && Directory.Exists(deletePendingPath))
@@ -174,56 +188,68 @@ namespace Windower.Core
 
             DateTime lastUpdated = DateTime.MinValue;
             var timestamp = (string)document?.Root?.Attribute("timestamp");
-            if (timestamp == null)
+
+            if (timestamp != null)
             {
                 lastUpdated = DateTime.TryParseExact(timestamp, "O", CultureInfo.InvariantCulture,
                     DateTimeStyles.AdjustToUniversal, out var result) ? result : DateTime.MinValue;
             }
 
-            var request = WebRequest.CreateHttp(new Uri(updateUrl + "version.xml"));
-            request.UserAgent = UserAgent;
-            request.IfModifiedSince = lastUpdated;
-            request.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
+            var request = new HttpRequestMessage(HttpMethod.Get, new Uri(updateUrl + "version.xml"));
+            if (lastUpdated > DateTime.MinValue)
+            {
+                request.Headers.IfModifiedSince = lastUpdated;
+            }
+
             try
             {
-                using (var response = (HttpWebResponse)await request.GetResponseAsync())
+                using (var response = await HttpClient.SendAsync(request))
                 {
-                    using (var stream = response.GetResponseStream())
+                    // 304 Not Modified means our local file is perfectly fine
+                    if (response.StatusCode == HttpStatusCode.NotModified)
+                    {
+                        return document?.Root;
+                    }
+
+                    response.EnsureSuccessStatusCode();
+
+                    using (var stream = await response.Content.ReadAsStreamAsync())
                     {
                         var temp = XDocument.Load(stream);
-                        temp.Root.SetAttributeValue("timestamp", response.LastModified.ToString("O"));
+                        var lastModifiedStr = response.Content.Headers.LastModified?.ToString("O") ?? DateTime.UtcNow.ToString("O");
+                        temp.Root.SetAttributeValue("timestamp", lastModifiedStr);
                         Directory.CreateDirectory(Path.GetDirectoryName(versionPath));
                         temp.Save(versionPath);
                         document = temp;
                     }
                 }
             }
-            catch (WebException) { }
+            catch (HttpRequestException) { }
 
             return document?.Root;
         }
 
         private static async Task<string> DownloadToTemporaryFile(Uri url, IProgress<long> progress)
         {
-            var request = WebRequest.CreateHttp(url);
-            request.UserAgent = UserAgent;
-            request.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
             try
             {
-                using (var response = (HttpWebResponse)await request.GetResponseAsync())
-                using (var inputStream = response.GetResponseStream())
+                using (var response = await HttpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
                 {
-                    var path = Paths.ExpandPath(Paths.GlobalTempPath);
-                    Directory.CreateDirectory(path);
-                    path = Path.Combine(path, Path.GetRandomFileName());
-                    using (var outputStream = new FileStream(path, FileMode.CreateNew))
+                    response.EnsureSuccessStatusCode();
+                    using (var inputStream = await response.Content.ReadAsStreamAsync())
                     {
-                        await inputStream.CopyToAsync(outputStream, progress);
-                        return path;
+                        var path = Paths.ExpandPath(Paths.GlobalTempPath);
+                        Directory.CreateDirectory(path);
+                        path = Path.Combine(path, Path.GetRandomFileName());
+                        using (var outputStream = new FileStream(path, FileMode.CreateNew))
+                        {
+                            await inputStream.CopyToAsync(outputStream, progress);
+                            return path;
+                        }
                     }
                 }
             }
-            catch (WebException) { }
+            catch (HttpRequestException) { }
 
             return null;
         }
@@ -252,7 +278,7 @@ namespace Windower.Core
         [RemoteCallable]
         private static bool InstallUpdates(string launcherTempPath, string coreTempPath, bool elevated, CancellationToken token)
         {
-            var launcherPath = new Uri(typeof(Launcher).Assembly.EscapedCodeBase).LocalPath;
+            var launcherPath = Environment.ProcessPath;
             var installRoot = Path.GetDirectoryName(launcherPath);
 
             var restartRequired = false;

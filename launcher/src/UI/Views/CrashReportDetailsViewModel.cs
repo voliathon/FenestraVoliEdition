@@ -28,6 +28,7 @@ namespace Windower.UI.Views
     using System.Diagnostics;
     using System.IO;
     using System.Windows.Input;
+    using System.Windows.Shapes;
 
     public class CrashReportDetailsViewModel : ViewModelBase
     {
@@ -81,7 +82,7 @@ namespace Windower.UI.Views
         {
             if (File.Exists(localReport))
             {
-                Process.Start(localReport);
+                Process.Start(new ProcessStartInfo(localReport) { UseShellExecute = true });
             }
         }
 
@@ -91,7 +92,7 @@ namespace Windower.UI.Views
         {
             if (remoteReport.IsAbsoluteUri)
             {
-                Process.Start(remoteReport.AbsoluteUri);
+                Process.Start(new ProcessStartInfo(remoteReport.AbsoluteUri) { UseShellExecute = true });
             }
         }
 

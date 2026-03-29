@@ -25,7 +25,6 @@
 namespace Windower
 {
     using System;
-    using System.Runtime.ConstrainedExecution;
     using System.Runtime.InteropServices;
 
     /// <summary>
@@ -49,8 +48,6 @@ namespace Windower
         /// </PermissionSet>
         public override bool IsInvalid
         {
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-            [PrePrepareMethod]
             get => handle == IntPtr.Zero;
         }
 
@@ -61,8 +58,6 @@ namespace Windower
         /// true if the handle is released successfully; otherwise, in the event of a catastrophic failure, false. In
         /// this case, it generates a releaseHandleFailed MDA Managed Debugging Assistant.
         /// </returns>
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        [PrePrepareMethod]
         protected override bool ReleaseHandle()
         {
             Marshal.FreeCoTaskMem(handle);

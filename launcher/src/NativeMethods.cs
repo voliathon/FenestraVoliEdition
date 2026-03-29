@@ -33,7 +33,7 @@ namespace Windower
     {
         internal const int STATUS_SUCCESS = 0;
 
-        internal const int E_NOTIMPL = unchecked((int) 0x80004001);
+        internal const int E_NOTIMPL = unchecked((int)0x80004001);
 
         internal const uint ATTACH_PARENT_PROCESS = unchecked((uint)-1);
 
@@ -43,15 +43,14 @@ namespace Windower
         internal static extern int RtlGetVersion(ref RTL_OSVERSIONINFOW lpVersionInformation);
 
         [SuppressMessage("Microsoft.Interoperability", "CA1400")]
-        [DllImport("ntdll.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("ntdll.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
         [return: MarshalAs(UnmanagedType.LPStr)]
         internal static extern string wine_get_version();
 
         [SuppressMessage("Microsoft.Interoperability", "CA1400")]
-        [DllImport("ntdll.dll", CallingConvention = CallingConvention.Cdecl)]
-        [return: MarshalAs(UnmanagedType.LPStr)]
-        internal static extern void wine_get_host_version([MarshalAs(UnmanagedType.LPStr)]out string sysname,
-            [MarshalAs(UnmanagedType.LPStr)]out string release);
+        [DllImport("ntdll.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
+        internal static extern void wine_get_host_version([MarshalAs(UnmanagedType.LPStr)] out string sysname,
+            [MarshalAs(UnmanagedType.LPStr)] out string release);
 
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -63,7 +62,7 @@ namespace Windower
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true, CharSet = CharSet.Unicode)]
         internal static extern IntPtr LoadLibrary(string lpFileName);
 
-        [DllImport("shell32.dll", CallingConvention = CallingConvention.Winapi)]
+        [DllImport("shell32.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode)]
         internal static extern int SetCurrentProcessExplicitAppUserModelID([MarshalAs(UnmanagedType.LPWStr)] string AppID);
 
         [DllImport("shell32.dll", CallingConvention = CallingConvention.Winapi)]

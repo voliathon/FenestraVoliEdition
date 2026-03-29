@@ -24,9 +24,6 @@
 
 namespace Windower.Core
 {
-    using Boiler;
-    using Microsoft.Win32;
-    using PlayOnline;
     using System;
     using System.Collections.Generic;
     using System.ComponentModel;
@@ -34,13 +31,16 @@ namespace Windower.Core
     using System.Diagnostics.CodeAnalysis;
     using System.IO;
     using System.Linq;
+    using System.Reflection;
+    using System.Runtime.ExceptionServices;
     using System.Runtime.InteropServices;
     using System.Security.AccessControl;
     using System.Security.Principal;
     using System.Threading;
     using System.Threading.Tasks;
-    using System.Runtime.ExceptionServices;
-
+    using Boiler;
+    using Microsoft.Win32;
+    using PlayOnline;
     using static System.FormattableString;
 
     public static class Launcher
@@ -74,6 +74,7 @@ namespace Windower.Core
             info.FileName = "cmd";
             info.Arguments = Invariant($"/C {path} /Online /Enable-Feature /FeatureName:DirectPlay /All");
             info.Verb = "runas";
+            info.UseShellExecute = true; // <--- ADDED THIS LINE HERE for .NET 8
             info.WindowStyle = ProcessWindowStyle.Hidden;
             try
             {
@@ -254,8 +255,9 @@ namespace Windower.Core
 
         private static string GetCorePath()
         {
-            var path = new Uri(typeof(Launcher).Assembly.EscapedCodeBase).LocalPath;
-            return Path.Combine(Path.GetDirectoryName(path), "core.dll");
+            // The NEW way (.NET 8)
+            string myPath = Assembly.GetExecutingAssembly().Location;
+            return Path.Combine(Path.GetDirectoryName(myPath), "core.dll");
         }
 
         private static bool CheckPermissions(Profile profile)

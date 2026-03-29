@@ -412,23 +412,6 @@ namespace Windower
             while (bytesRead > 0);
         }
 
-        private static bool VerifyAssemblyStrongName(Assembly assembly)
-        {
-            if (assembly.Location != null)
-            {
-                try
-                {
-                    var clrStrongName = (IClrStrongName)RuntimeEnvironment.GetRuntimeInterfaceAsObject(
-                        new Guid("B79B0ACD-F5CD-409b-B5A5-A16244610B92"), new Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D"));
-                    clrStrongName.StrongNameSignatureVerificationEx(assembly.Location, true, out bool verified);
-                    return verified;
-                }
-                catch (COMException) { }
-            }
-
-            return false;
-        }
-
         [ComImport]
         [ComConversionLoss, Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D")]
         [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]

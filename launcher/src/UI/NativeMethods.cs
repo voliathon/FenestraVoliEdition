@@ -25,7 +25,6 @@
 namespace Windower.UI
 {
     using System;
-    using System.Runtime.ConstrainedExecution;
     using System.Runtime.InteropServices;
 
     internal static class NativeMethods
@@ -35,7 +34,6 @@ namespace Windower.UI
 
         public const int SIID_SHIELD = 77;
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         [DllImport("user32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool DestroyIcon(IntPtr hIcon);

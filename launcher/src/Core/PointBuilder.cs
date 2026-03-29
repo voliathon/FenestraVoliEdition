@@ -50,11 +50,7 @@ namespace Windower.Core
 
         public Point Get(Point baseValue)
         {
-            if (baseValue == null)
-            {
-                throw new ArgumentNullException(nameof(baseValue));
-            }
-
+            // Removed the impossible null check
             return baseValue.With(x, y);
         }
     }

@@ -3,6 +3,7 @@
   <PropertyGroup>
     <ReleaseBuild Condition="'$(ReleaseBuild)'==''">false</ReleaseBuild>
     <Configuration Condition=" '$(Configuration)' == '' ">debug</Configuration>
+	<Cultures>en-US</Cultures>
     <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
     <ProductVersion>3.10</ProductVersion>
     <ProjectGuid>ab956356-e570-465a-9554-2ceff4c7c590</ProjectGuid>

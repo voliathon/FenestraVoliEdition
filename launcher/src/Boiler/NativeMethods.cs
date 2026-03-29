@@ -26,7 +26,6 @@ namespace Boiler
 {
     using Microsoft.Win32.SafeHandles;
     using System;
-    using System.Runtime.ConstrainedExecution;
     using System.Runtime.InteropServices;
     using System.Security;
 
@@ -53,7 +52,6 @@ namespace Boiler
             WinEventProc lpfnWinEventProc, uint idProcess, uint idThread, uint dwflags);
 
         [SuppressUnmanagedCodeSecurity]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         [DllImport("user32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool UnhookWinEvent(IntPtr hWinEventHook);

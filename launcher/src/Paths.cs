@@ -105,7 +105,8 @@ namespace Windower
 
         private static string GetWindowerPath()
         {
-            return Path.GetDirectoryName(new Uri(typeof(Paths).Assembly.EscapedCodeBase).LocalPath);
+            // Removed the obsolete EscapedCodeBase and Uri wrapper
+            return Path.GetDirectoryName(typeof(Paths).Assembly.Location);
         }
 
         private static string GetPath(DictionaryEntry e)

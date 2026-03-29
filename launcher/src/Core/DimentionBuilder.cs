@@ -47,11 +47,7 @@ namespace Windower.Core
 
         public Dimension Get(Dimension baseValue)
         {
-            if (baseValue == null)
-            {
-                throw new ArgumentNullException(nameof(baseValue));
-            }
-
+            // Removed the impossible null check
             return baseValue.With(width, height);
         }
     }

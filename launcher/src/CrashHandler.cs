@@ -31,7 +31,6 @@ namespace Windower
     using System.IO;
     using System.Linq;
     using System.Reflection;
-    using System.Runtime.ExceptionServices;
     using System.Runtime.InteropServices;
     using System.Security;
     using System.Text;
@@ -113,7 +112,6 @@ namespace Windower
         }
 
         [SuppressMessage("Microsoft.Usage", "CA2202")]
-        [HandleProcessCorruptedStateExceptions]
         [SecurityCritical]
         private static void LogCrash(object sender, UnhandledExceptionEventArgs e)
         {
@@ -134,7 +132,6 @@ namespace Windower
             }
         }
 
-        [HandleProcessCorruptedStateExceptions]
         [SecurityCritical]
         private static void HandleCrash(object sender, UnhandledExceptionEventArgs e)
         {
@@ -159,7 +156,8 @@ namespace Windower
 
                     stackTrace = Convert.ToBase64String(Encoding.UTF8.GetBytes(stackTrace));
 
-                    var path = new Uri(Assembly.GetEntryAssembly().EscapedCodeBase).LocalPath;
+                    // Replaced the obsolete EscapedCodeBase wrapper with .Location
+                    var path = Environment.ProcessPath;
                     _ = Process.Start(path, "report-crash --signature \"" + signature +
                         "\" --stack-trace \"" + stackTrace + "\" \"" + dumpFile.Replace("\"", "\\\"") + "\"");
 

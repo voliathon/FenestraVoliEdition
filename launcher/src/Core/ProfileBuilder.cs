@@ -252,11 +252,7 @@ namespace Windower.Core
 
         public Profile Get(Profile baseValue)
         {
-            if (baseValue == null)
-            {
-                throw new ArgumentNullException(nameof(baseValue));
-            }
-
+            // Removed the impossible null check
             return baseValue.With(name, region, useSteam, executable, executableArgs, runAsAdmin, windowType, display, resolution, position,
                 samplesPerPixel, uiScale, hardwareMouse, maxSounds, playSoundWhenUnfocused, mipmapping, bumpMapping, mapCompression,
                 textureCompression, environmentAnimation, fontType, gamma, driverStability, playIntro, debug, developerMode, userPath, userPath,

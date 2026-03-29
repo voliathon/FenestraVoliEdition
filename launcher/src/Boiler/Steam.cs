@@ -469,7 +469,7 @@ namespace Boiler
                     using (NativeMethods.SetWinEventHook(NativeMethods.EVENT_OBJECT_CREATE, NativeMethods.EVENT_OBJECT_CREATE,
                         IntPtr.Zero, callback, 0, 0, NativeMethods.WINEVENT_OUTOFCONTEXT))
                     {
-                        Process.Start("steam://rungameid/" + appId);
+                        Process.Start(new ProcessStartInfo("steam://rungameid/" + appId) { UseShellExecute = true });
 
                         while (process == null && !token.IsCancellationRequested)
                         {

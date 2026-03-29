@@ -1,3 +1,5 @@
+#pragma warning disable SYSLIB0011
+
 /*
  * Copyright © Windower Dev Team
  *
@@ -247,7 +249,16 @@ namespace Windower
                 try
                 {
                     var call = (CallDescriptor)formatter.Deserialize(pipe);
-                    var method = call.Method;
+
+                    // .NET 8 Fix: Look up the method using the strings we sent
+                    var type = Type.GetType(call.TypeName);
+                    var method = type?.GetMethod(call.MethodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+
+                    if (method == null)
+                    {
+                        throw new InvalidOperationException(Invariant($"Method \"{call.MethodName}\" could not be found."));
+                    }
+
                     var assembly = Assembly.GetExecutingAssembly();
                     if (method.ReflectedType.Assembly != assembly)
                     {
@@ -269,19 +280,23 @@ namespace Windower
                         cancellationSignal.WaitOne();
                         source.Cancel();
                     }).Start();
-                    result.Result = call.Method.Invoke(null, call.Arguments.Concat(new object[] { source.Token }).ToArray());
+
+                    result.Result = method.Invoke(null, call.Arguments.Concat(new object[] { source.Token }).ToArray());
                     cancellationSignal.Set();
                 }
                 catch (TargetInvocationException e)
                 {
                     result.ThrewException = true;
-                    result.Result = e.InnerException;
+                    // Send plain text string instead of an Exception object
+                    result.Result = e.InnerException?.ToString() ?? e.ToString();
                 }
                 catch (Exception e)
                 {
                     result.ThrewException = true;
-                    result.Result = e;
+                    // Send plain text string instead of an Exception object
+                    result.Result = e.ToString();
                 }
+
                 formatter.Serialize(pipe, result);
                 Environment.Exit(0);
             }
@@ -297,17 +312,22 @@ namespace Windower
             {
                 var info = new ProcessStartInfo()
                 {
-                    FileName = new Uri(Assembly.GetEntryAssembly().CodeBase).LocalPath,
+                    FileName = Environment.ProcessPath,
                     Arguments = Parser.Default.FormatCommandLine(new RemoteCallOptions { ProcessId = processId }),
-                    Verb = elevate ? "runas" : null
+                    Verb = elevate ? "runas" : null,
+                    UseShellExecute = true //.NET8 at default disables ShellExecute, but we need it for elevation, so re-enable it if necessary.
                 };
                 using (var process = Process.Start(info))
                 {
                     pipe.WaitForConnection();
                     var formatter = new BinaryFormatter();
                     var call = default(CallDescriptor);
-                    call.Method = method.Method;
+
+                    // .NET 8 Fix: Send strings instead of the banned MethodInfo object
+                    call.TypeName = method.Method.DeclaringType.AssemblyQualifiedName;
+                    call.MethodName = method.Method.Name;
                     call.Arguments = args;
+
                     await Task.Run(() => formatter.Serialize(pipe, call));
                     var result = default(ResultDescriptor);
                     if (token.CanBeCanceled)
@@ -337,7 +357,8 @@ namespace Windower
 
                     if (result.ThrewException)
                     {
-                        ExceptionDispatchInfo.Capture((Exception)result.Result).Throw();
+                        // Throw a brand new exception using the text string we sent over the pipe
+                        throw new Exception("Elevated Process Error:\n" + result.Result.ToString());
                     }
                     return result.Result;
                 }
@@ -347,7 +368,8 @@ namespace Windower
         [Serializable]
         private struct CallDescriptor
         {
-            public MethodInfo Method;
+            public string TypeName;
+            public string MethodName;
             public object[] Arguments;
         }
 

@@ -26,7 +26,6 @@ namespace Windower.Core
 {
     using Microsoft.Win32.SafeHandles;
     using System;
-    using System.Runtime.ConstrainedExecution;
     using System.Runtime.InteropServices;
     using System.Security;
     using System.Text;
@@ -224,7 +223,6 @@ namespace Windower.Core
         /// See <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/aa366894.aspx">MSDN</a> for more details.
         /// </remarks>
         [SuppressUnmanagedCodeSecurity]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         [DllImport("kernel32.dll", CallingConvention = CallingConvention.Winapi, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool VirtualFreeEx(SafeWaitHandle hProcess, IntPtr lpAddress, UIntPtr dwSize, uint dwFreeType);
@@ -397,7 +395,6 @@ namespace Windower.Core
         internal static extern SafeDeviceContextHandle GetDC(IntPtr hWnd);
 
         [SuppressUnmanagedCodeSecurity]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         [DllImport("user32.dll", CallingConvention = CallingConvention.Winapi)]
         internal static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
 

@@ -24,17 +24,18 @@
 
 namespace Windower.UI.Views
 {
-    using Core;
     using System;
     using System.Collections.Immutable;
     using System.Diagnostics;
     using System.Globalization;
     using System.IO;
     using System.Linq;
+    using System.Reflection;
     using System.Threading.Tasks;
     using System.Windows;
     using System.Windows.Input;
     using System.Windows.Shell;
+    using Core;
 
     public class SelectProfileViewModel : ViewModelBase
     {
@@ -42,7 +43,7 @@ namespace Windower.UI.Views
         private ProfileManager manager;
         private Profile? selectedProfile;
 
-        private static readonly string executablePath = new Uri(typeof(SelectProfileViewModel).Assembly.EscapedCodeBase).LocalPath;
+        private static readonly string executablePath = Assembly.GetExecutingAssembly().Location;
 
         public SelectProfileViewModel(INavigationService navigation, ProfileManager manager)
         {
