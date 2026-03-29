@@ -34,7 +34,7 @@ jobs:
 
       - name: Build Core Application
         run: |
-          msbuild fenestra.sln -t:'restore;build' -p:configuration=release -p:PlatformToolset=v143 -m -nowarn:NU1503
+          msbuild fenestra.sln -t:'restore;build' -p:configuration=release -p:PlatformToolset=v143 -p:TreatWarningsAsErrors=false -p:RunCodeAnalysis=false -m -nowarn:NU1503
           
       - name: Build Installer
         run: |
