@@ -35,10 +35,9 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <coroutine>
 #include <utility>
 #include <vector>
-
-#include <experimental/resumable>
 
 bool windower::operator<=(wait_state const& lhs, wait_state const& rhs) noexcept
 {
@@ -64,8 +63,7 @@ windower::task::task(task&& other) noexcept : m_coroutine{other.m_coroutine}
     other.m_coroutine = nullptr;
 }
 
-windower::task::task(
-    std::experimental::coroutine_handle<promise_type> coroutine) noexcept :
+windower::task::task(std::coroutine_handle<promise_type> coroutine) noexcept :
     m_coroutine{coroutine}
 {}
 

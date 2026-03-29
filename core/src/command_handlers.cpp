@@ -28,6 +28,7 @@
 #include "core.hpp"
 #include "errors/command_error.hpp"
 #include "unicode.hpp"
+#include "utilities/coroutine.hpp"
 #include "utility.hpp"
 
 #include <limits>

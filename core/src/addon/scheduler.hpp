@@ -29,6 +29,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <coroutine>
 #include <cstddef>
 #include <exception>
 #include <functional>
@@ -36,8 +37,6 @@
 #include <string>
 #include <tuple>
 #include <vector>
-
-#include <experimental/resumable>
 
 namespace windower
 {
@@ -48,8 +47,7 @@ struct wait_state
 
     constexpr wait_state(
         std::chrono::steady_clock::time_point time, std::size_t frame) :
-        time{time},
-        frame{frame}
+        time{time}, frame{frame}
     {}
 
     std::chrono::steady_clock::time_point time =
@@ -75,19 +73,12 @@ public:
         auto get_return_object() noexcept
         {
             return task{
-                std::experimental::coroutine_handle<promise_type>::from_promise(
-                    *this)};
+                std::coroutine_handle<promise_type>::from_promise(*this)};
         }
 
-        auto initial_suspend() noexcept
-        {
-            return std::experimental::suspend_always{};
-        }
+        auto initial_suspend() noexcept { return std::suspend_always{}; }
 
-        auto final_suspend() noexcept
-        {
-            return std::experimental::suspend_always{};
-        }
+        auto final_suspend() noexcept { return std::suspend_always{}; }
 
         void return_void() noexcept {}
 
@@ -117,9 +108,7 @@ public:
 
             bool await_ready() const noexcept { return !m_condition; }
 
-            void
-            await_suspend(std::experimental::coroutine_handle<>) const noexcept
-            {}
+            void await_suspend(std::coroutine_handle<>) const noexcept {}
 
             bool await_resume() const noexcept { return m_condition; }
 
@@ -152,9 +141,9 @@ public:
     void tag(void const*) const noexcept;
 
 private:
-    std::experimental::coroutine_handle<promise_type> m_coroutine;
+    std::coroutine_handle<promise_type> m_coroutine;
 
-    explicit task(std::experimental::coroutine_handle<promise_type>) noexcept;
+    explicit task(std::coroutine_handle<promise_type>) noexcept;
 };
 
 class scheduler

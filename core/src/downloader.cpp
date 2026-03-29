@@ -27,6 +27,7 @@
 #include "core.hpp"
 #include "handle.hpp"
 #include "unicode.hpp"
+#include "utilities/coroutine.hpp"
 #include "version.hpp"
 
 #include <windows.h>
@@ -35,6 +36,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <coroutine>
 #include <cstdint>
 #include <future>
 #include <mutex>
@@ -42,8 +44,6 @@
 #include <string>
 #include <thread>
 #include <utility>
-
-#include <experimental/coroutine>
 
 namespace
 {
@@ -93,7 +93,7 @@ public:
     }
 
     internet_handle& operator=(internet_handle const&) = delete;
-    internet_handle& operator=(internet_handle&&) = delete;
+    internet_handle& operator=(internet_handle&&)      = delete;
 
     explicit operator bool() noexcept { return m_value; }
 
@@ -387,8 +387,8 @@ struct windower::downloader::job::impl
 
     std::vector<result> const files;
     std::mutex mutex;
-    std::atomic<bool> complete                      = false;
-    std::experimental::coroutine_handle<> resumable = nullptr;
+    std::atomic<bool> complete        = false;
+    std::coroutine_handle<> resumable = nullptr;
 };
 
 windower::downloader::job::awaiter::awaiter(job const& job) noexcept :
@@ -401,7 +401,7 @@ bool windower::downloader::job::awaiter::await_ready() const noexcept
 }
 
 void windower::downloader::job::awaiter::await_suspend(
-    std::experimental::coroutine_handle<> resumable) const
+    std::coroutine_handle<> resumable) const
 {
     std::lock_guard<std::mutex> lock{m_job.m_impl->mutex};
     if (m_job.m_impl->complete)

@@ -27,6 +27,7 @@
 #include "addon/errors/package_error.hpp"
 #include "core.hpp"
 #include "downloader.hpp"
+#include "utilities/coroutine.hpp"
 #include "utilities/xml.hpp"
 #include "utility.hpp"
 
@@ -107,8 +108,7 @@ last_modified(std::filesystem::path const& path, bool force)
 windower::package_version::package_version(
     std::uint32_t major, std::uint32_t minor, std::uint32_t revision,
     std::uint32_t build, std::u8string_view tag) noexcept :
-    major{major},
-    minor{minor}, revision{revision}, build{build}, tag{tag}
+    major{major}, minor{minor}, revision{revision}, build{build}, tag{tag}
 {}
 
 windower::package_version::package_version(std::u8string_view value) :
@@ -155,9 +155,7 @@ std::u8string windower::to_u8string(package_version const& value)
 }
 
 windower::package_dependency::package_dependency(
-    std::u8string_view name, bool required) :
-    m_name{name},
-    m_required{required}
+    std::u8string_view name, bool required) : m_name{name}, m_required{required}
 {}
 
 std::u8string const& windower::package_dependency::name() const noexcept
@@ -511,9 +509,10 @@ void windower::package_manager::initialize_source_list()
             std::scoped_lock lock{m_mutex};
             for (auto const& s : sources.children("source"))
             {
-                m_package_sources.push_back(source{
-                    to_u8string(s.attribute("url").as_string()),
-                    to_u8string(s.attribute("guid").as_string()), false});
+                m_package_sources.push_back(
+                    source{
+                        to_u8string(s.attribute("url").as_string()),
+                        to_u8string(s.attribute("guid").as_string()), false});
             }
         }
         catch (windower_error const&)
@@ -594,9 +593,9 @@ std::future<void> windower::package_manager::update_sources(bool force)
     {}
 
     std::vector<downloader::file> files;
-    for (auto source : m_package_sources)
+    for (auto const& source : m_package_sources)
     {
-        auto url  = source.url;
+        auto url{source.url};
         auto path = staging_path / source.guid;
         if (url.empty() || url.back() != u8'/')
         {
@@ -650,7 +649,7 @@ windower::package_manager::update_source(source source, bool force)
 
     std::vector<downloader::file> files;
     {
-        auto url  = source.url;
+        auto url{source.url};
         auto path = staging_path / source.guid;
         if (url.empty() || url.back() != u8'/')
         {
@@ -766,7 +765,7 @@ windower::package_manager::install_or_update(
         std::vector<downloader::job> jobs;
         for (auto const& p : packages)
         {
-            auto root_url = p.root_url;
+            auto root_url{p.root_url};
             if (root_url.empty() || root_url.back() != u8'/')
             {
                 root_url.append(1, u8'/');
@@ -776,7 +775,8 @@ windower::package_manager::install_or_update(
             for (auto const& file : p.files)
             {
                 auto url  = root_url + file.generic_u8string();
-                auto path = (staging_path / file).make_preferred();
+                auto path = staging_path / file;
+                path.make_preferred();
                 fs::create_directories(path.parent_path());
                 auto const time =
                     last_modified(m_installed_package_directory / file, force);
@@ -801,7 +801,7 @@ windower::package_manager::install_or_update(
                                    it2->name + u8"\"";
                     if (windower::core::instance().settings.verbose_logging)
                     {
-                        for (auto r : results)
+                        for (auto const& r : results)
                         {
                             ::check(r);
                         }
@@ -828,7 +828,7 @@ windower::package_manager::install_or_update(
                     }
 
                     std::lock_guard<std::mutex> lock{m_mutex};
-                    for (auto r : results)
+                    for (auto const& r : results)
                     {
                         auto path = m_installed_package_directory /
                                     relative(r.file().path, staging_path);
@@ -949,8 +949,8 @@ void windower::package_manager::load_source(
         {
             auto name = to_u8string(package.child_value("name"));
             auto it   = std::lower_bound(
-                  m_available_packages.begin(), m_available_packages.end(), name,
-                  [](auto const& a, auto const& b) noexcept {
+                m_available_packages.begin(), m_available_packages.end(), name,
+                [](auto const& a, auto const& b) noexcept {
                     return a.name < b;
                 });
             if (it == m_available_packages.end() || it->name != name)
@@ -1078,8 +1078,8 @@ void windower::package_manager::reverse_topological_sort(
             {
                 auto& dependencies = vertex.second.value->dependencies();
                 auto it            = std::find_if(
-                               dependencies.begin(), dependencies.end(),
-                               [&](auto const& d) noexcept { return d.name() == name; });
+                    dependencies.begin(), dependencies.end(),
+                    [&](auto const& d) noexcept { return d.name() == name; });
                 if (it != dependencies.end())
                 {
                     vertex.second.color = vertex_color::gray;
