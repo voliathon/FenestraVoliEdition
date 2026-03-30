@@ -14,8 +14,8 @@
     <WixVariable Id="WixUIDialogBmp" Value="res\dialog.bmp"/>
     <WixVariable Id="WixUIBannerBmp" Value="res\banner.bmp"/>
     <WixVariable Id="WixUILicenseRtf" Value="res\license.rtf"/>
-    <Condition Message="This application is only supported on Windows 7 or higher.">
-      <![CDATA[Installed OR (VersionNT >= 601)]]>
+	<Condition Message="This application is only supported on Windows 10 or higher.">
+      <![CDATA[Installed OR (VersionNT >= 1000)]]>
     </Condition>
     <Feature Id="Feature" Title="Windower" Level="1">
       <ComponentGroupRef Id="Components"/>
