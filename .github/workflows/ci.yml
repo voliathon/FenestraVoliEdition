@@ -3,7 +3,7 @@ name: Build Project
 on:
   push:
     branches: [ 'main', 'stable' ]
-    tags: [ 'v*' ] # <-- NEW: This tells GitHub to listen for version tags
+    tags: [ 'v*' ] # <-- Tells GitHub to listen for version tags
   pull_request:
     branches: [ 'main', 'stable' ]
   workflow_dispatch: 
@@ -15,7 +15,7 @@ defaults:
 jobs:
   build:
     name: Build Application
-    runs-on: windows-latest # <-- CHANGED: This provisions the VS 2026 / v145 toolset
+    runs-on: windows-latest # <-- Provisions the VS 2026 / v145 toolset
     if: |
       !contains(github.event.head_commit.message, '***NO_CI***') &&
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -34,7 +34,7 @@ jobs:
 
       - name: Build Core Application
         run: |
-          msbuild fenestra.sln -t:'restore;build' -p:configuration=release -p:PlatformToolset=v143 -p:TreatWarningsAsErrors=false -p:RunCodeAnalysis=false -m -nowarn:NU1503
+          msbuild fenestra.sln -t:'restore;build' -p:configuration=release -p:PlatformToolset=v143 -p:TreatWarningsAsErrors=false -p:RunCodeAnalysis=false -p:ReleaseBuild=true -m -nowarn:NU1503
           
       - name: Build Installer
         run: |
@@ -47,14 +47,13 @@ jobs:
           name: compiled-binaries
           path: build/bin/release/
 
-      # --- NEW: Automated Release Pipeline ---
-      - name: Zip Release Artifacts
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: Compress-Archive -Path build/bin/release/* -DestinationPath Fenestra-Release.zip
-        
+      # --- UPDATED: Automated Release Pipeline ---
       - name: Publish to GitHub Releases
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: Fenestra-Release.zip
+          files: |
+            build/bin/release/windower.msi
+            build/bin/release/windower.zip
+            build/bin/release/windower.portable.zip
           generate_release_notes: true
