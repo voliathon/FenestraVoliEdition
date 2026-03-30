@@ -35,6 +35,15 @@
       <Component>
         <File Source="$(var.SolutionDir)build\bin\$(var.Configuration)\windower.exe"/>
       </Component>
+
+      <Component>
+        <File Source="$(var.SolutionDir)build\bin\$(var.Configuration)\windower.dll"/>
+      </Component>
+
+      <Component>
+        <File Source="$(var.SolutionDir)build\bin\$(var.Configuration)\windower.runtimeconfig.json"/>
+      </Component>
+
       <Component>
         <File Source="$(var.SolutionDir)build\bin\$(var.Configuration)\core.dll"/>
       </Component>

@@ -5,9 +5,9 @@
     </Reference>
   </ItemDefinitionGroup>
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>disable</Nullable>
-    <ReleaseBuild Condition=" '$(ReleaseBuild)' == '' ">false</ReleaseBuild>
+    <ReleaseBuild Condition=" '$(ReleaseBuild)' == '' ">true</ReleaseBuild>
     <ReleaseConstants Condition=" '$(ReleaseBuild)' == 'true' ">WINDOWER_RELEASE_BUILD</ReleaseConstants>
     <ReleaseConstants Condition=" '$(ReleaseBuild)' != 'true' ">WINDOWER_TEST_BUILD</ReleaseConstants>
     <OutputPath>$(SolutionDir)build\bin\$(Configuration)\</OutputPath>
@@ -52,9 +52,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Extended.Wpf.Toolkit" Version="5.0.0" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="System.Collections.Immutable" Version="10.0.5" />
   </ItemGroup>
   <ItemGroup>
     <CodeAnalysisDictionary Include="CustomDictionary.xml" />

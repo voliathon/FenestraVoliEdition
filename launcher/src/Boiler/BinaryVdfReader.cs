@@ -93,7 +93,13 @@ namespace Boiler
                             {
                                 var key = ReadString(input, encoding);
                                 var buffer = new byte[4];
-                                input.Read(buffer, 0, buffer.Length);
+
+                                // CHANGE THIS:
+                                // input.Read(buffer, 0, buffer.Length);
+
+                                // TO THIS:
+                                input.ReadExactly(buffer);
+
                                 var value = BitConverter.ToInt32(buffer, 0);
                                 Add(key, new VdfString(value.ToString(CultureInfo.InvariantCulture)));
                             }

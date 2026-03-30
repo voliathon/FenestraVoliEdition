@@ -35,11 +35,10 @@ namespace Windower
     using System.IO;
     using System.IO.Pipes;
     using System.Linq;
-    using System.Net;
     using System.Reflection;
     using System.Runtime.ExceptionServices;
-    using System.Runtime.Serialization.Formatters.Binary;
     using System.Text;
+    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Windower.UI;
@@ -76,15 +75,13 @@ namespace Windower
             Shell.Initialize();
             Paths.Initialize();
 
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
             ParseInternalArguments(args);
         }
 
         private static string GetBuildTag()
         {
 #if WINDOWER_RELEASE_BUILD
-            const string tag = string.Empty;
+            const string tag = ""; // <-- FIXED: Changed from string.Empty
 #else
             const string tag = "Development Build";
 #endif
@@ -244,13 +241,16 @@ namespace Windower
             using (var pipe = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous))
             {
                 pipe.Connect();
-                var formatter = new BinaryFormatter();
                 var result = default(ResultDescriptor);
+                var jsonOptions = new JsonSerializerOptions { IncludeFields = true };
+
                 try
                 {
-                    var call = (CallDescriptor)formatter.Deserialize(pipe);
+                    // .NET 10 Fix: Read exactly one line to avoid EOF deadlock
+                    using var reader = new StreamReader(pipe, Encoding.UTF8, false, 1024, leaveOpen: true);
+                    var json = reader.ReadLine();
+                    var call = JsonSerializer.Deserialize<CallDescriptor>(json, jsonOptions);
 
-                    // .NET 8 Fix: Look up the method using the strings we sent
                     var type = Type.GetType(call.TypeName);
                     var method = type?.GetMethod(call.MethodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
 
@@ -272,6 +272,21 @@ namespace Windower
                             Invariant($"Method \"{method.Name}\" does not have \"{nameof(RemoteCallableAttribute)}\"."));
                     }
 
+                    // JSON deserializes objects to JsonElements. Convert them back to real types based on the method signature.
+                    var parameters = method.GetParameters();
+                    var finalArgs = new object[call.Arguments.Length];
+                    for (int i = 0; i < call.Arguments.Length; i++)
+                    {
+                        if (call.Arguments[i] is JsonElement elem)
+                        {
+                            finalArgs[i] = elem.Deserialize(parameters[i].ParameterType, jsonOptions);
+                        }
+                        else
+                        {
+                            finalArgs[i] = call.Arguments[i];
+                        }
+                    }
+
                     var cancellationSignalName = Invariant($"Windower.RPC.CancellationSignal[{processId}]");
                     var cancellationSignal = new EventWaitHandle(false, EventResetMode.ManualReset, cancellationSignalName);
                     var source = new CancellationTokenSource();
@@ -281,24 +296,26 @@ namespace Windower
                         source.Cancel();
                     }).Start();
 
-                    result.Result = method.Invoke(null, call.Arguments.Concat(new object[] { source.Token }).ToArray());
+                    result.Result = method.Invoke(null, finalArgs.Concat(new object[] { source.Token }).ToArray());
                     cancellationSignal.Set();
                 }
                 catch (TargetInvocationException e)
                 {
-                    result.ThrewException = true;
-                    // Send plain text string instead of an Exception object
-                    result.Result = e.InnerException?.ToString() ?? e.ToString();
+                    result.ErrorMessage = e.InnerException?.ToString() ?? e.ToString();
                 }
                 catch (Exception e)
                 {
-                    result.ThrewException = true;
-                    // Send plain text string instead of an Exception object
-                    result.Result = e.ToString();
+                    result.ErrorMessage = e.ToString();
                 }
+                finally
+                {
+                    // .NET 10 Fix: Write exactly one line and instantly flush it through the pipe
+                    using var writer = new StreamWriter(pipe, Encoding.UTF8, 1024, leaveOpen: true);
+                    writer.WriteLine(JsonSerializer.Serialize(result, jsonOptions));
+                    writer.Flush();
 
-                formatter.Serialize(pipe, result);
-                Environment.Exit(0);
+                    Environment.Exit(0);
+                }
             }
         }
 
@@ -315,20 +332,25 @@ namespace Windower
                     FileName = Environment.ProcessPath,
                     Arguments = Parser.Default.FormatCommandLine(new RemoteCallOptions { ProcessId = processId }),
                     Verb = elevate ? "runas" : null,
-                    UseShellExecute = true //.NET8 at default disables ShellExecute, but we need it for elevation, so re-enable it if necessary.
+                    UseShellExecute = true //.NET8/10 at default disables ShellExecute, but we need it for elevation, so re-enable it if necessary.
                 };
                 using (var process = Process.Start(info))
                 {
                     pipe.WaitForConnection();
-                    var formatter = new BinaryFormatter();
                     var call = default(CallDescriptor);
+                    var jsonOptions = new JsonSerializerOptions { IncludeFields = true };
 
-                    // .NET 8 Fix: Send strings instead of the banned MethodInfo object
                     call.TypeName = method.Method.DeclaringType.AssemblyQualifiedName;
                     call.MethodName = method.Method.Name;
                     call.Arguments = args;
 
-                    await Task.Run(() => formatter.Serialize(pipe, call));
+                    // .NET 10 Fix: Write exactly one line and instantly flush it through the pipe
+                    using (var writer = new StreamWriter(pipe, Encoding.UTF8, 1024, leaveOpen: true))
+                    {
+                        writer.WriteLine(JsonSerializer.Serialize(call, jsonOptions));
+                        writer.Flush();
+                    }
+
                     var result = default(ResultDescriptor);
                     if (token.CanBeCanceled)
                     {
@@ -345,27 +367,40 @@ namespace Windower
                         });
                         var runner = Task.Run(() =>
                         {
-                            result = (ResultDescriptor)formatter.Deserialize(pipe);
+                            // .NET 10 Fix: Read exactly one line to avoid EOF deadlock
+                            using var reader = new StreamReader(pipe, Encoding.UTF8, false, 1024, leaveOpen: true);
+                            var responseJson = reader.ReadLine();
+                            result = JsonSerializer.Deserialize<ResultDescriptor>(responseJson, jsonOptions);
+
                             completed.Set();
                         });
                         await Task.Run(() => Task.WaitAll(runner, canceller));
                     }
                     else
                     {
-                        result = (ResultDescriptor)await Task.Run(() => formatter.Deserialize(pipe));
+                        // .NET 10 Fix: Read exactly one line to avoid EOF deadlock
+                        using var reader = new StreamReader(pipe, Encoding.UTF8, false, 1024, leaveOpen: true);
+                        var responseJson = await Task.Run(() => reader.ReadLine());
+                        result = JsonSerializer.Deserialize<ResultDescriptor>(responseJson, jsonOptions);
                     }
 
-                    if (result.ThrewException)
+                    if (result.ErrorMessage != null)
                     {
                         // Throw a brand new exception using the text string we sent over the pipe
-                        throw new Exception("Elevated Process Error:\n" + result.Result.ToString());
+                        throw new Exception("Elevated Process Error:\n" + result.ErrorMessage);
                     }
+
+                    // .NET 10 Fix: Unpack the JsonElement back into the original primitive type (like bool)
+                    if (result.Result is JsonElement elem && method.Method.ReturnType != typeof(void))
+                    {
+                        return elem.Deserialize(method.Method.ReturnType, jsonOptions);
+                    }
+
                     return result.Result;
                 }
             }
         }
 
-        [Serializable]
         private struct CallDescriptor
         {
             public string TypeName;
@@ -373,11 +408,10 @@ namespace Windower
             public object[] Arguments;
         }
 
-        [Serializable]
         private struct ResultDescriptor
         {
-            public bool ThrewException;
             public object Result;
+            public string ErrorMessage;
         }
 
         [Verb("remote-call")]

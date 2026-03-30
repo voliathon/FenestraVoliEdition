@@ -44,7 +44,7 @@
     <Content Include="res\banner.bmp" />
     <Content Include="res\dialog.bmp" />
   </ItemGroup>
-  <UsingTask TaskName="WriteVersionInfo" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll">
+<UsingTask TaskName="WriteVersionInfo" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <OutputPath ParameterType="System.String" Required="true" />
       <LauncherPath ParameterType="System.String" Required="true" />
@@ -54,6 +54,7 @@
       <Reference Include="System.Xml" />
       <Reference Include="System.Xml.Linq" />
       <Code Type="Fragment" Language="cs">
+        <![CDATA[
         var timestamp = DateTime.UtcNow.ToString("O");
         Version launcherVersion;
         long launcherSize;
@@ -68,7 +69,7 @@
         {
             var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(CorePath);
             coreVersion = new Version(info.ProductMajorPart, info.ProductMinorPart, info.ProductBuildPart, info.ProductPrivatePart);
-            coreSize = new System.IO.FileInfo(LauncherPath).Length;
+            coreSize = new System.IO.FileInfo(CorePath).Length; // FIXED: Changed LauncherPath to CorePath
         }
 
         var document = new System.Xml.Linq.XDocument(
@@ -80,13 +81,16 @@
                     new System.Xml.Linq.XAttribute("version", coreVersion),
                     new System.Xml.Linq.XAttribute("size", coreSize))));
         document.Save(OutputPath);
+        ]]>
       </Code>
     </Task>
   </UsingTask>
   <Target Name="BuildZips" BeforeTargets="Build" Outputs="$(OutDir)windower.zip">
-    <ItemGroup>
+	<ItemGroup>
       <ZipFiles Include="$(OutDir)core.dll" />
       <ZipFiles Include="$(OutDir)windower.exe" />
+      <ZipFiles Include="$(OutDir)windower.dll" />
+      <ZipFiles Include="$(OutDir)windower.runtimeconfig.json" />
       <ZipFiles Include="$(SolutionDir)LICENSE.md" />
     </ItemGroup>
     <Copy SourceFiles="@(ZipFiles)" DestinationFolder="$(IntermediateOutputPath)/windower" />
