@@ -50,6 +50,9 @@
       <Component>
         <File Source="$(var.SolutionDir)LICENSE.md"/>
       </Component>
+	  <Component>
+        <File Source="$(var.SolutionDir)paths.xml"/>
+      </Component>	  
     </ComponentGroup>
   </Fragment>
 </Wix>

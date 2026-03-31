@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package>
+    <name>HelloWorld</name>
+    <version>1.0.0</version>
+    <type>addon</type>
+    <description>My first dope addon</description>
+</package>

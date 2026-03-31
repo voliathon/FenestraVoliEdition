@@ -92,6 +92,7 @@
       <ZipFiles Include="$(OutDir)windower.dll" />
       <ZipFiles Include="$(OutDir)windower.runtimeconfig.json" />
       <ZipFiles Include="$(SolutionDir)LICENSE.md" />
+	  <ZipFiles Include="$(SolutionDir)paths.xml" />
     </ItemGroup>
     <Copy SourceFiles="@(ZipFiles)" DestinationFolder="$(IntermediateOutputPath)/windower" />
     <ZipDirectory SourceDirectory="$(IntermediateOutputPath)/windower" DestinationFile="$(OutDir)windower.zip" Overwrite="true" />

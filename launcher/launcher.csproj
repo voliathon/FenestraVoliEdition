@@ -1,9 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <ItemDefinitionGroup>
     <Reference>
       <Private>False</Private>
     </Reference>
   </ItemDefinitionGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>disable</Nullable>
@@ -27,6 +29,7 @@
     <ApplicationIcon>res\Icon.ico</ApplicationIcon>
     <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
   </PropertyGroup>
+
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'debug|AnyCPU' ">
     <DefineConstants>$(ReleaseConstants);DEBUG;TRACE</DefineConstants>
     <RunCodeAnalysis>false</RunCodeAnalysis>
@@ -35,14 +38,15 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors Condition="$(CI) == 'true'">true</TreatWarningsAsErrors>
   </PropertyGroup>
+
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'release|AnyCPU' ">
     <DefineConstants>$(ReleaseConstants);TRACE</DefineConstants>
-    <CodeAnalysisRuleSet>
-    </CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet></CodeAnalysisRuleSet>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <UseVSHostingProcess>true</UseVSHostingProcess>
     <TreatWarningsAsErrors Condition="$(CI) == 'true'">true</TreatWarningsAsErrors>
   </PropertyGroup>
+
   <ItemGroup>
     <None Update="launcher.manifest">
       <SubType>Designer</SubType>
@@ -54,19 +58,40 @@
     <PackageReference Include="Extended.Wpf.Toolkit" Version="5.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
+
   <ItemGroup>
     <CodeAnalysisDictionary Include="CustomDictionary.xml" />
   </ItemGroup>
+
   <ItemGroup>
     <Resource Include="res\Icon.ico" />
   </ItemGroup>
+
   <ItemGroup>
     <Resource Include="FodyWeavers.xml" />
   </ItemGroup>
+
+  <Target Name="DeployEngineAssets" AfterTargets="Build">
+    <Copy SourceFiles="..\paths.xml" DestinationFolder="$(OutDir)" />
+
+    <MakeDir Directories="$(OutDir)packages" />
+
+    <ItemGroup>
+      <MyAddons Include="..\custom_packages\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(MyAddons)" DestinationFolder="$(OutDir)packages\%(RecursiveDir)" />
+
+    <ItemGroup>
+      <CoreModules Include="..\core\src\addon\modules\*.lua" />
+    </ItemGroup>
+    <Copy SourceFiles="@(CoreModules)" DestinationFolder="$(OutDir)modules" />
+  </Target>
+
   <Target Name="CopyFileResources" AfterTargets="CoreCompile" Inputs="@(FileResource)" Outputs="@(FileResource->'$(OutDir)%(filename)%(extension)')">
     <Copy SourceFiles="@(FileResource)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
     <ItemGroup>
       <FileWrites Include="@(FileResource->'$(OutDir)%(filename)%(extension)')" />
     </ItemGroup>
   </Target>
+
 </Project>
