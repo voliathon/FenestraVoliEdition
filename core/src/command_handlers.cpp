@@ -73,37 +73,70 @@ void check_args(
     check_args(command_name, args, expected, expected);
 }
 
+// PILLAR 3: Network functions wrapped with Error Handling and Success Feedback
 std::future<void> install_impl(std::vector<std::u8string> const& args)
 {
-    check_args(u8"/install", args, 1, unlimited);
-    auto const& core = windower::core::instance();
-    auto updated     = co_await core.package_manager->install(args);
-    if (core.addon_manager)
+    try
     {
-        core.addon_manager->reload(updated);
+        check_args(u8"/install", args, 1, unlimited);
+        auto const& core = windower::core::instance();
+        auto updated     = co_await core.package_manager->install(args);
+        if (core.addon_manager)
+        {
+            core.addon_manager->reload(updated);
+        }
+        windower::core::output(
+            u8"System", u8"Packages successfully installed.");
+    }
+    catch (std::exception const& e)
+    {
+        std::string err_str = e.what();
+        std::u8string err_u8(err_str.begin(), err_str.end());
+        windower::core::error(u8"Downloader", u8"Install failed: " + err_u8);
     }
 }
 
 std::future<void> update_impl(std::vector<std::u8string> const& args)
 {
-    check_args(u8"/update", args, 1, unlimited);
-    auto const& core = windower::core::instance();
-    auto updated     = co_await core.package_manager->update(args);
-    if (core.addon_manager)
+    try
     {
-        core.addon_manager->reload(updated);
+        check_args(u8"/update", args, 1, unlimited);
+        auto const& core = windower::core::instance();
+        auto updated     = co_await core.package_manager->update(args);
+        if (core.addon_manager)
+        {
+            core.addon_manager->reload(updated);
+        }
+        windower::core::output(u8"System", u8"Packages successfully updated.");
+    }
+    catch (std::exception const& e)
+    {
+        std::string err_str = e.what();
+        std::u8string err_u8(err_str.begin(), err_str.end());
+        windower::core::error(u8"Downloader", u8"Update failed: " + err_u8);
     }
 }
 
 std::future<void> updateall_impl(std::vector<std::u8string> const& args)
 {
-    check_args(u8"/updateall", args, 0, 1);
-    auto const& core = windower::core::instance();
-    auto const force = !args.empty() && gsl::at(args, 0) == u8"force";
-    auto updated     = co_await core.package_manager->update_all(force);
-    if (core.addon_manager)
+    try
     {
-        core.addon_manager->reload(updated);
+        check_args(u8"/updateall", args, 0, 1);
+        auto const& core = windower::core::instance();
+        auto const force = !args.empty() && gsl::at(args, 0) == u8"force";
+        auto updated     = co_await core.package_manager->update_all(force);
+        if (core.addon_manager)
+        {
+            core.addon_manager->reload(updated);
+        }
+        windower::core::output(
+            u8"System", u8"All packages successfully updated.");
+    }
+    catch (std::exception const& e)
+    {
+        std::string err_str = e.what();
+        std::u8string err_u8(err_str.begin(), err_str.end());
+        windower::core::error(u8"Downloader", u8"Update All failed: " + err_u8);
     }
 }
 };
@@ -341,6 +374,9 @@ void windower::command_handlers::pkg(
     {
         check_args(u8"/pkg", args, 1);
         core.package_manager->reset();
+        // PILLAR 3: Success Feedback for pkg reload
+        windower::core::output(
+            u8"System", u8"Package cache successfully reloaded.", source);
     }
     else if (gsl::at(args, 0) == u8"listsrc")
     {

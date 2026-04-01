@@ -81,10 +81,6 @@
     </ItemGroup>
     <Copy SourceFiles="@(MyAddons)" DestinationFolder="$(OutDir)packages\%(RecursiveDir)" />
 
-    <ItemGroup>
-      <CoreModules Include="..\core\src\addon\modules\*.lua" />
-    </ItemGroup>
-    <Copy SourceFiles="@(CoreModules)" DestinationFolder="$(OutDir)modules" />
   </Target>
 
   <Target Name="CopyFileResources" AfterTargets="CoreCompile" Inputs="@(FileResource)" Outputs="@(FileResource->'$(OutDir)%(filename)%(extension)')">

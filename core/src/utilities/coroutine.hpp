@@ -83,6 +83,19 @@ struct std::coroutine_traits<std::future<void>, T&, Args...>
     };
 };
 
+// --- ADD THIS BLOCK TO FIX VISUAL STUDIO INTELLISENSE ---
+template<typename R, typename T, typename... Args>
+    requires(!std::is_void_v<R> && !std::is_reference_v<R>)
+struct std::coroutine_traits<std::future<R>, T*, Args...> :
+    std::coroutine_traits<std::future<R>, T&, Args...>
+{};
+
+template<typename T, typename... Args>
+struct std::coroutine_traits<std::future<void>, T*, Args...> :
+    std::coroutine_traits<std::future<void>, T&, Args...>
+{};
+// --------------------------------------------------------
+
 template<typename R>
 auto operator co_await(std::future<R> future) noexcept
     requires(!std::is_reference_v<R>)

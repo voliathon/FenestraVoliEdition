@@ -171,9 +171,26 @@ bool windower::package_dependency::required() const noexcept
 windower::package::package(std::filesystem::path root_path, bool can_update) :
     m_root_path{std::move(root_path)}, m_can_update{can_update}
 {
-    auto stream = resolve(u8"manifest.xml");
     pugi::xml_document doc;
-    check(doc.load(stream), stream);
+
+    // Pillar 2: The Boilerplate Nuke
+    // If the manifest exists, load it. If not, generate it dynamically in
+    // memory.
+    if (std::filesystem::exists(m_root_path / u8"manifest.xml"))
+    {
+        auto stream = resolve(u8"manifest.xml");
+        check(doc.load(stream), stream);
+    }
+    else
+    {
+        auto folder_name = m_root_path.filename().u8string();
+        auto root        = doc.append_child("package");
+        root.append_child("name").text().set(
+            reinterpret_cast<char const*>(folder_name.c_str()));
+        root.append_child("version").text().set("1.0.0");
+        root.append_child("type").text().set("addon");
+        root.append_child("description").text().set("Auto-generated manifest");
+    }
 
     auto const package = doc.child("package");
     if (!package)
@@ -914,7 +931,14 @@ void windower::package_manager::populate_installed_packages(
         {
             try
             {
-                if (fs::exists(entry.path() / u8"manifest.xml"))
+                auto folder_name  = entry.path().filename().u8string();
+                bool has_manifest = fs::exists(entry.path() / u8"manifest.xml");
+                bool has_lua =
+                    fs::exists(entry.path() / (folder_name + u8".lua"));
+
+                // If either the XML or the naked Lua file exists, register the
+                // package
+                if (has_manifest || has_lua)
                 {
                     vertex v{package{entry.path(), can_update}};
                     m_installed_packages.try_emplace(

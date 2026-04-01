@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package>
+    <name>FenestraSDK</name>
+    <version>1.0.0</version>
+    <type>library</type>
+    <description>The Master API Facade for Fenestra Voli Edition</description>
+</package>
