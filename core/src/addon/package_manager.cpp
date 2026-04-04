@@ -917,7 +917,13 @@ void windower::package_manager::populate_installed_packages()
     {
         populate_installed_packages(override_path, false);
     }
+
+    // Scan the standard 'packages' root folder
     populate_installed_packages(m_installed_package_directory, true);
+
+    // Scan our custom 'packages/libs' folder!
+    auto libs_directory = m_installed_package_directory / u8"libs";
+    populate_installed_packages(libs_directory, true);
 }
 
 void windower::package_manager::populate_installed_packages(

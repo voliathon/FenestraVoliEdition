@@ -25,9 +25,11 @@
 #include "ui/widget/check.hpp"
 
 #include "ui/context.hpp"
+#include "ui/dimension.hpp"
 #include "ui/id.hpp"
 #include "ui/patch.hpp"
 #include "ui/primitives.hpp"
+#include "ui/text_layout_engine.hpp"
 #include "ui/widget/basic_button.hpp"
 
 namespace windower::ui::widget
@@ -56,21 +58,56 @@ button_state check(
     context& ctx, id id, std::u8string_view text,
     std::optional<bool> checked) noexcept
 {
-    auto const enabled = ctx.enabled();
+    auto const enabled         = ctx.enabled();
+    auto const original_bounds = ctx.bounds();
+    auto const position        = original_bounds.position();
 
+    // ========================================================================
+    // 1. DYNAMIC WIDTH MEASUREMENT
+    // ========================================================================
+    auto text_options =
+        text_layout_options{.word_wrapping = text_word_wrapping::no_wrap};
+    auto const text_layout = primitive::layout_text(
+        ctx, {dimension::unbounded, dimension::unbounded}, text, text_options);
+
+    float const text_width = std::ceil(text_layout.metric_bounds().width());
+
+    // Total Width = 5px indent + Checkbox (14) + Gap (6) + Text Width + Padding
+    // (4)
+    float const total_active_width = 29.f + text_width;
+
+    // ========================================================================
+    // 2. THE MARGIN-ADJUSTED HITBOX
+    // Start exactly at the clipping wall (x0) to avoid scroll panel cuts!
+    // Shift Up by 6px, and Clamp the right side to the text length.
+    // ========================================================================
+    auto const hit_bounds = rectangle{
+        original_bounds.x0, // Safely anchored to the left wall
+        original_bounds.y0 - 6.f,
+        original_bounds.x0 + total_active_width, // Clamp the highlight!
+        original_bounds.y1 - 6.f};
+
+    ctx.bounds(hit_bounds);
     auto const state = basic_button(ctx, id);
+    ctx.bounds(original_bounds);
 
-    auto const& bounds      = ctx.bounds();
-    auto const position     = bounds.position();
-    auto const text_bounds  = expand(contract(bounds, {16, 0, 0, 0}), {0, 3});
-    auto const check_bounds = rectangle{position, position + vector{12, 12}};
+    // ========================================================================
+    // 3. VISUAL RENDERING (Indented 5 pixels to the right)
+    // ========================================================================
+    auto const check_bounds = rectangle{
+        position.x + 5.f, // Shift box right
+        position.y + 2.f,
+        position.x + 19.f, // 5 + 14 = 19
+        position.y + 16.f};
 
     primitive::text(
-        ctx, text_bounds, text,
+        ctx, {position.x + 25.f, position.y + 1.f},
+        text_layout, // Shift text right
         {.fill_color = ctx.system_color(
              enabled ? system_color::label : system_color::label_disabled)});
 
     primitive::set_texture(ctx, ctx.skin());
+
     if (!ctx.enabled())
     {
         primitive::rectangle(

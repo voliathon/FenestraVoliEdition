@@ -73,14 +73,11 @@
 
   <Target Name="DeployEngineAssets" AfterTargets="Build">
     <Copy SourceFiles="..\paths.xml" DestinationFolder="$(OutDir)" />
-
     <MakeDir Directories="$(OutDir)packages" />
-
     <ItemGroup>
-      <MyAddons Include="..\custom_packages\**\*.*" />
+      <MyAddons Include="..\custom_packages\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(MyAddons)" DestinationFolder="$(OutDir)packages\%(RecursiveDir)" />
-
   </Target>
 
   <Target Name="CopyFileResources" AfterTargets="CoreCompile" Inputs="@(FileResource)" Outputs="@(FileResource->'$(OutDir)%(filename)%(extension)')">

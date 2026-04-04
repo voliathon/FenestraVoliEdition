@@ -39,9 +39,45 @@ local -- params
     settings_path,
     user_path,
     package_path,
-    package_name = ...
+    package_name,
+    get_package_list_ptr,
+    get_package_readme_ptr,
+    read_market_file_ptr,    -- Must be here to catch arg 19!
+    write_market_file_ptr = ... -- Must be here to catch arg 20!
 -- LuaFormatter on
 
+local ffi = require('ffi')
+
+-- FFI Signatures
+local get_package_list_c = ffi.typeof('char const*(*)()')(get_package_list_ptr)
+local get_package_readme_c = ffi.typeof('char const*(*)(char const*)')(get_package_readme_ptr)
+local read_market_file_c = ffi.typeof('char const*(*)(char const*)')(read_market_file_ptr)
+local write_market_file_c = ffi.typeof('void(*)(char const*, char const*)')(write_market_file_ptr)
+
+-- Clean Lua Wrappers
+local function get_package_list()
+    local ptr = get_package_list_c()
+    if ptr ~= nil then return ffi.string(ptr) end
+    return ""
+end
+
+local function get_package_readme(name)
+    local ptr = get_package_readme_c(name)
+    if ptr ~= nil then return ffi.string(ptr) end
+    return ""
+end
+
+local function read_file(name)
+    local ptr = read_market_file_c(name)
+    if ptr ~= nil then return ffi.string(ptr) end
+    return ""
+end
+
+local function write_file(name, data)
+    write_market_file_c(name, data)
+end
+
+-- Expose to the Engine
 local windower = {
     version = version,
     version_major = version_major,
@@ -54,6 +90,13 @@ local windower = {
     user_path = user_path,
     package_path = package_path,
     package_name = package_name,
+    
+    -- Expose all 4 bridges to your FenestraSDK!
+    get_package_list = get_package_list, 
+    get_package_readme = get_package_readme,
+    read_file = read_file,   
+    write_file = write_file, 
+    
     settings = {
         client_size = {width = client_width, height = client_height},
         ui_size = {width = ui_width, height = ui_height}

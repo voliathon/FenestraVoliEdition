@@ -43,7 +43,7 @@ namespace windower::ui::widget
 namespace
 {
 
-static constexpr auto standard_resize_handles = thickness{5};
+static constexpr auto standard_resize_handles = thickness{0.f, 5.f, 5.f, 5.f};
 
 constexpr auto standard_a_title =
     nine_patch{{11, 3, 49, 25}, {16, 16, 16, 6}, {9, 9, 9, 0}};
@@ -634,9 +634,16 @@ bool standard_window(context& ctx, window_state& state) noexcept
          .flags = text_rasterization_flags::clip_to_bounds});
 
     primitive::set_texture(ctx, ctx.skin());
+
+    // ========================================================================
+    // FIX: Inflating the Title Bar Drag bounds and the Close Button bounds
+    // We add 8.f to the bottom bound of the drag box and 4.f to the close box.
+    // ========================================================================
     if (auto const [target, button_state] = mouse_targets(
-            ctx, wnd, state, frame, {frame.x0, frame.y0, frame.x1, 0},
-            {frame.x1 - close_w, frame.y0, frame.x1, 0},
+            ctx, wnd, state, frame,
+            {frame.x0, frame.y0, frame.x1, 8.f}, // <--- Expanded Drag area
+            {frame.x1 - close_w, frame.y0, frame.x1,
+             4.f}, // <--- Expanded Close area
             standard_resize_handles);
         target == mouse_target::close)
     {

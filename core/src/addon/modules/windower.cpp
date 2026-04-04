@@ -25,13 +25,107 @@
 #include "windower.hpp"
 
 #include "addon/addon.hpp"
+#include "addon/package_manager.hpp"
 #include "addon/lua.hpp"
 #include "addon/modules/windower.lua.hpp"
 #include "core.hpp"
 #include "utility.hpp"
 #include "version.hpp"
 
+#include <string>
+
 #include <filesystem>
+#include <fstream>
+
+// Bridge functions for the windower module. These are used to expose core
+// functionality to addons, and are not intended for use by addons directly.
+namespace
+{
+extern "C" char const* get_package_list_ffi()
+{
+    static std::string result;
+    result.clear();
+
+    auto const& pm = windower::core::instance().package_manager;
+
+    for (auto const& pkg : pm->installed_packages())
+    {
+        result.append(reinterpret_cast<char const*>(pkg->name().c_str()));
+        result.append("|");
+        result.append(
+            reinterpret_cast<char const*>(
+                windower::to_u8string(pkg->version()).c_str()));
+        result.append("|");
+        result.append(
+            reinterpret_cast<char const*>(pkg->path().u8string().c_str()));
+        result.append("|");
+
+        // Check for the Readme securely in C++
+        const bool has_readme =
+            std::filesystem::exists(pkg->path() / u8"README.md");
+        result.append(has_readme ? "1" : "0");
+        result.append(";");
+    }
+    return result.c_str();
+}
+
+extern "C" char const* read_market_file_ffi(char const* filename)
+{
+    static std::string content;
+    content.clear();
+
+    // Call the standalone windower::user_path() function
+    auto dir  = windower::user_path() / u8"addons" / u8"FenestraMarket";
+    auto path = dir / reinterpret_cast<const char8_t*>(filename);
+
+    std::ifstream file(path, std::ios::binary);
+    if (file)
+    {
+        content.assign(
+            (std::istreambuf_iterator<char>(file)),
+            std::istreambuf_iterator<char>());
+    }
+    return content.c_str();
+}
+
+extern "C" void write_market_file_ffi(char const* filename, char const* data)
+{
+    // Call the standalone windower::user_path() function
+    auto dir = windower::user_path() / u8"addons" / u8"FenestraMarket";
+    std::filesystem::create_directories(dir);
+
+    auto path = dir / reinterpret_cast<const char8_t*>(filename);
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    if (file)
+    {
+        file << data;
+    }
+}
+
+// New function to read the file securely
+extern "C" char const* get_package_readme_ffi(char const* pkg_name)
+{
+    static std::string content;
+    content.clear();
+
+    std::u8string u8_name = reinterpret_cast<const char8_t*>(pkg_name);
+    auto const& pm        = windower::core::instance().package_manager;
+    auto pkg              = pm->get_package(u8_name);
+
+    if (pkg)
+    {
+        auto readme_path = pkg->path() / u8"README.md";
+        std::ifstream file(readme_path, std::ios::binary);
+        if (file)
+        {
+            content.assign(
+                (std::istreambuf_iterator<char>(file)),
+                std::istreambuf_iterator<char>());
+        }
+    }
+    return content.c_str();
+}
+}
 
 int windower::load_windower_module(lua::state s)
 {
@@ -77,7 +171,16 @@ int windower::load_windower_module(lua::state s)
         lua::push(guard, lua::nil); // package_name
     }
 
-    lua::call(guard, 16);
+    // Push the get_package_list function as a closure, so it can be called from
+    // Lua to retrieve the list of installed packages.
+    lua::push(guard, &get_package_list_ffi); // <--- Use the FFI safe pointer
+    lua::push(guard, &get_package_readme_ffi);
+    lua::push(guard, &read_market_file_ffi); 
+    lua::push(guard, &write_market_file_ffi); 
+
+    // The windower module expects 20 upvalues, which are the values we just pushed
+    lua::call(guard, 20);
 
     return guard.release();
 }
+
