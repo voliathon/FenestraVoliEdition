@@ -71,13 +71,18 @@
     <Resource Include="FodyWeavers.xml" />
   </ItemGroup>
 
-  <Target Name="DeployEngineAssets" AfterTargets="Build">
+<Target Name="DeployEngineAssets" AfterTargets="Build">
     <Copy SourceFiles="..\paths.xml" DestinationFolder="$(OutDir)" />
-    <MakeDir Directories="$(OutDir)packages" />
     <ItemGroup>
-      <MyAddons Include="..\custom_packages\**\*" />
+      <MarkdownDocs Include="..\*.md" />
     </ItemGroup>
-    <Copy SourceFiles="@(MyAddons)" DestinationFolder="$(OutDir)packages\%(RecursiveDir)" />
+    <Copy SourceFiles="@(MarkdownDocs)" DestinationFolder="$(OutDir)" />
+
+    <MakeDir Directories="$(OutDir)addons" />
+    <ItemGroup>
+      <MyAddons Include="..\addons\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(MyAddons)" DestinationFolder="$(OutDir)addons\%(RecursiveDir)" />
   </Target>
 
   <Target Name="CopyFileResources" AfterTargets="CoreCompile" Inputs="@(FileResource)" Outputs="@(FileResource->'$(OutDir)%(filename)%(extension)')">

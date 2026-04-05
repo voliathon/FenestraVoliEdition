@@ -287,7 +287,7 @@ windower::package_manager::package_manager() noexcept
         {u8"https://windower.github.io/Resources",
          u8"0403E868-52FE-4329-A6D5-5AC9745C57B7", true});
     initialize_source_list();
-    m_installed_package_directory = settings_path() / u8"packages";
+    m_installed_package_directory = settings_path() / u8"addons";
     initialize_package_override_directories();
 
     reset();

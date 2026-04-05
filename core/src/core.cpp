@@ -338,6 +338,8 @@ windower::core::core() noexcept
         cmd.register_command(
             command_manager::layer::core, u8"", u8"prevwindow",
             command_handlers::prevwindow);
+
+
     });
 }
 
@@ -452,12 +454,103 @@ void windower::core::update() noexcept
     if (!m_updated)
     {
         m_updated = true;
+
+// ==========================================
+        // THE BULLETPROOF AUTOLOADER (WINDOWER 5 NATIVE)
+        // Waits until the engine is fully alive and the addon_manager exists
+        // ==========================================
+        static bool auto_loaded = false;
+        static int boot_delay   = 0;
+
+        if (!auto_loaded && addon_manager)
+        {
+            // Give the engine time to breathe (approx 2 seconds)
+            if (boot_delay < 120)
+            {
+                boot_delay++;
+            }
+            else
+            {
+                try
+                {
+                    auto& cmd = command_manager::instance();
+
+                    // 1. The Core Network & Data Providers
+                    cmd.handle_command(
+                        u8"/load packet_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load settings_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load resources_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load client_data_service",
+                        windower::command_source::client);
+
+                    // 2. The Dynamic Game-State Hosts
+                    cmd.handle_command(
+                        u8"/load account_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load player_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load target_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load world_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load items_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load key_items_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load action_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load automaton_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load linkshell_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load status_effects_service",
+                        windower::command_source::client);
+                    cmd.handle_command(
+                        u8"/load treasure_service",
+                        windower::command_source::client);
+
+                    // 3. The Master Interface
+                    cmd.handle_command(
+                        u8"/load AddonManager",
+                        windower::command_source::client);
+
+                    // ONLY flag as successfully loaded if every command above
+                    // fires without throwing an error!
+                    auto_loaded = true;
+                }
+                catch (...)
+                {
+                    // The engine parser threw an error because it isn't awake
+                    // yet. Knock the delay back down so it waits 1 more second,
+                    // then tries the loop again.
+                    boot_delay = 60;
+                }
+            }
+        }
+        // ==========================================
+
         scheduler::next_frame();
         script_environment.run_until_idle();
         if (addon_manager)
         {
             addon_manager->run_until_idle();
         }
+
         std::function<void()> function;
         while (try_pop(m_queued_functions, m_queued_functions_mutex, function))
         {

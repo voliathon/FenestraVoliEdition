@@ -5,7 +5,9 @@
     <version>1.0.3</version>
     <type>addon</type>
 	<dependencies>
-        <dependency>FenestraSDK</dependency>
+		<dependency>ui</dependency>
+        <dependency>chat</dependency>
+        <dependency>command</dependency>
         
         <dependency>packet_service</dependency>
         <dependency>packet</dependency>
