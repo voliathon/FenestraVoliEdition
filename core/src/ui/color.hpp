@@ -153,6 +153,12 @@ constexpr color to_associated_alpha(color c) noexcept
 
 constexpr color to_straight_alpha(color c) noexcept
 {
+    // JANITOR FIX: Prevent Division by Zero if alpha is 0
+    if (c.a == 0)
+    {
+        return {0, 0, 0, 0};
+    }
+
     auto const inv_a = 255.f / c.a;
 
     auto const temp_r = std::clamp(std::round(c.r * inv_a), 0.f, 255.f);

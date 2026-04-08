@@ -42,18 +42,14 @@ local function apply_settings()
     local window_aspect_ratio = (4 / 3) / (windower.settings.client_size.width / windower.settings.client_size.height)
     graphics.render.aspect_ratio = graphics_options.aspect_ratio.auto and window_aspect_ratio or ((4 / 3) / graphics_options.aspect_ratio.value)
 
-    -- Framerate Divisors
-    if graphics_options.framerate == 'unlimited' then
-        graphics.render.framerate_divisor = 0
-    elseif graphics_options.framerate <= 30 then
+	-- Framerate Divisors (Removed Unlimited)
+    if graphics_options.framerate <= 30 then
         graphics.render.framerate_divisor = 2
     else
         graphics.render.framerate_divisor = 1
     end
 
-    if graphics_options.animation_framerate == 'unlimited' then
-        graphics.animation_framerate = 0
-    elseif graphics_options.animation_framerate <= 30 then
+    if graphics_options.animation_framerate <= 30 then
         graphics.animation_framerate = 2
     else
         graphics.animation_framerate = 1
@@ -98,25 +94,23 @@ ui.display(function()
                 layout:label("[GRAPHICS & PERFORMANCE]{color:skin_accent weight:bold}")
                 layout:space(5)
                 
-                -- Framerate Row
+				-- Framerate Row
                 layout:label("Camera FPS (Cur: " .. tostring(options.graphics.framerate) .. ")")
-                local c30 = layout:button("btn_fps_30", "  30  ", false); layout:same_line()
-                local c60 = layout:button("btn_fps_60", "  60  ", false); layout:same_line()
-                local cul = layout:button("btn_fps_unl", " Unl ", false)
+                local c30 = layout:button("btn_fps_30", "  30 FPS  ", false); layout:same_line()
+                local c60 = layout:button("btn_fps_60", "  60 FPS  ", false)
+                
                 if c30 then options.graphics.framerate = 30; apply_settings(); settings.save() end
                 if c60 then options.graphics.framerate = 60; apply_settings(); settings.save() end
-                if cul then options.graphics.framerate = 'unlimited'; apply_settings(); settings.save() end
                 
                 layout:space(5)
                 
                 -- Animation Row
                 layout:label("Animation FPS (Cur: " .. tostring(options.graphics.animation_framerate) .. ")")
-                local a30 = layout:button("btn_afps_30", "  30  ", false); layout:same_line()
-                local a60 = layout:button("btn_afps_60", "  60  ", false); layout:same_line()
-                local aul = layout:button("btn_afps_unl", " Unl ", false)
+                local a30 = layout:button("btn_afps_30", "  30 FPS  ", false); layout:same_line()
+                local a60 = layout:button("btn_afps_60", "  60 FPS  ", false)
+                
                 if a30 then options.graphics.animation_framerate = 30; apply_settings(); settings.save() end
                 if a60 then options.graphics.animation_framerate = 60; apply_settings(); settings.save() end
-                if aul then options.graphics.animation_framerate = 'unlimited'; apply_settings(); settings.save() end
 
                 layout:space(5)
                 

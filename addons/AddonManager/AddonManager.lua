@@ -472,8 +472,8 @@ command.register({'addon', 'addons'}, function(args)
             switch_profile(args[2])
             state.scanned = false
         elseif args[1] == "reload" and args[2] then
-            -- Note: We still send '/pkg reload' to the core, but the user uses '/addon reload'
-            core_command.input('/pkg reload ' .. args[2])
+            -- Switched from '/pkg reload' to native '/reload'
+            core_command.input('/reload ' .. args[2])
             chat.success("AddonManager: Reloading package '" .. args[2] .. "'...")
         else
             state.show_ui = not state.show_ui

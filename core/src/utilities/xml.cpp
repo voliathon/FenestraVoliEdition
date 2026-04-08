@@ -74,7 +74,6 @@ void windower::check(
         }
     }
     auto const column = result.offset - line_pos;
-
     stream.seekg(line_pos, std::ios::beg);
     std::u8string line_source;
     {
@@ -82,7 +81,12 @@ void windower::check(
         std::istreambuf_iterator<char> const end{};
         for (; it != end && *it != u8'\n'; ++it)
         {
-            line_source.push_back(*it);
+            // Ignore Windows carriage returns (\r) so they
+            // do not corrupt the debug console output.
+            if (*it != u8'\r')
+            {
+                line_source.push_back(*it);
+            }
         }
     }
 

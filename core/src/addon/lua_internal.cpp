@@ -81,14 +81,17 @@ extern "C"
         return 1;
     }
 
-    static int initialize(::lua_State* s) noexcept(false)
+static int initialize(::lua_State* s) noexcept(false)
     {
         ::lua_pushlightuserdata(s, windower::lua::unsafe::key::error_handler);
         ::lua_pushcclosure(s, ::error_handler, 0);
         ::lua_rawset(s, LUA_REGISTRYINDEX);
 
         ::lua_pushlightuserdata(s, windower::lua::unsafe::key::cache);
-        ::lua_createtable(s, 0, 0);
+
+        // FIX: Pre-allocate 32 slots instead of 0 to stop initial stuttering.
+        ::lua_createtable(s, 0, 32);
+
         ::lua_createtable(s, 0, 1);
         ::lua_pushlstring(s, "__mode", 6);
         ::lua_pushlstring(s, "v", 1);

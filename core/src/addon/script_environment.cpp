@@ -46,18 +46,34 @@ int load_script_module(windower::lua::state s)
     auto name = lua::get<std::u8string>(s, 1);
     std::replace(name.begin(), name.end(), u8'.', u8'\\');
     name.append(u8".lua");
+
     auto path = user_path() / u8"scripts" / name;
     std::ifstream stream{path, std::ios::binary};
+
     lua::stack_guard guard{s};
+
     if (stream.is_open())
     {
-        lua::load(guard, stream, u8'@' + path.u8string());
+        // JANITOR FIX: Catch compilation errors so they aren't silently
+        // swallowed
+        try
+        {
+            lua::load(guard, stream, u8'@' + path.u8string());
+        }
+        catch (windower::lua::error const& e)
+        {
+            // Propagate the actual error message to the Lua stack
+            lua::push(
+                guard, u8"\n    error loading module '" + name + u8"':\n\t" +
+                           to_u8string(e.what()));
+        }
     }
     else
     {
         lua::push(guard, u8"\n    no file '" + path.u8string() + u8'\'');
     }
-    return guard.release();
+
+    return gsl::narrow_cast<int>(guard.release());
 }
 
 }
