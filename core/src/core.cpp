@@ -41,9 +41,8 @@
 #include "ui/user_interface.hpp"
 #include "unicode.hpp"
 #include "utility.hpp"
-
+#include <float.h>
 #include <gsl/gsl>
-
 #include <mutex>
 
 namespace
@@ -455,7 +454,7 @@ void windower::core::update() noexcept
     {
         m_updated = true;
 
-// ==========================================
+        // ==========================================
         // THE BULLETPROOF AUTOLOADER (WINDOWER 5 NATIVE)
         // Waits until the engine is fully alive and the addon_manager exists
         // ==========================================
@@ -544,6 +543,33 @@ void windower::core::update() noexcept
         }
         // ==========================================
 
+        // ==========================================
+        // THE FPU AIRLOCK (LUAJIT 64-BIT MATH GUARD)
+        // ==========================================
+        class FpuStateGuard
+        {
+            unsigned int original_state;
+
+        public:
+            FpuStateGuard()
+            {
+                // Save FFXI's 32-bit state and force CPU to 64-bit (_PC_53)
+                _controlfp_s(&original_state, 0, 0);
+                _controlfp_s(nullptr, _PC_53, _MCW_PC);
+            }
+            ~FpuStateGuard()
+            {
+                // The microsecond Lua is done, restore FFXI's 32-bit state
+                _controlfp_s(nullptr, original_state, _MCW_PC);
+            }
+        };
+
+        // Activate the airlock! It will automatically lock the CPU into 64-bit
+        // mode here, and unlock it when it hits the closing bracket of the
+        // update() loop.
+        FpuStateGuard fpu_guard;
+
+        // EVERYTHING BELOW THIS LINE RUNS SAFELY IN 64-BIT MODE
         scheduler::next_frame();
         script_environment.run_until_idle();
         if (addon_manager)
@@ -563,7 +589,8 @@ void windower::core::update() noexcept
                 error(u8"");
             }
         }
-    }
+    } // <-- FpuStateGuard is automatically destroyed here, returning CPU to
+      // 32-bit for FFXI!
 }
 
 void windower::core::begin_frame() noexcept

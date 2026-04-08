@@ -206,11 +206,10 @@ windower::direct_3d::GetAdapterMonitor(::UINT Adapter) noexcept
     }
     *ppReturnedDeviceInterface = nullptr;
 
-    winrt::com_ptr<::IDirect3DDevice8> ptr;
+winrt::com_ptr<::IDirect3DDevice8> ptr;
     auto const result = m_impl->CreateDevice(
-        fix_adapter(m_impl, Adapter), DeviceType, hFocusWindow,
-        BehaviorFlags | D3DCREATE_FPU_PRESERVE, pPresentationParameters,
-        ptr.put());
+        fix_adapter(m_impl, Adapter), DeviceType, hFocusWindow, BehaviorFlags,
+        pPresentationParameters, ptr.put());
     if (SUCCEEDED(result))
     {
         *ppReturnedDeviceInterface =

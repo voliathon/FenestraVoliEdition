@@ -28,7 +28,7 @@ When installed or successfully compiled, the deployment directory will contain t
 * `core.dll` — The heavy-lifting C++ backend. This library is injected into FFXI to intercept network packets, hook DirectX, and provide the internal Lua environment.
 * `paths.xml` — A configuration file required by the C++ core to correctly locate the engine's internal directories.
 * `modules/` — A directory containing the engine's core Lua wrapper scripts (like `chat.lua` and `command.lua`) that bridge the gap between user addons and the C++ backend.
-* `packages/` — The directory where all user-created Lua addons (like custom UI elements or chat tools) are installed. Each addon resides in its own folder with a `manifest.xml` file.
+* `addons/` — The directory where all user-created Lua addons (like custom UI elements or chat tools) are installed. Each addon resides in its own folder with a `manifest.xml` file.
 
 ## 📄 License
 This software is provided under the MIT License. See the `LICENSE.md` file for details.
