@@ -10,10 +10,6 @@ local chat = require('chat')
 local ui = require('ui')
 
 local defaults = {
-    gameplay = {
-        auto_target = true,
-        inventory = { sort = false, type = 1 },
-    },
     graphics = {
         aspect_ratio = { auto = true, value = 16 / 9 },
         gamma = { red = 1.5, green = 1.5, blue = 1.5 },
@@ -23,12 +19,7 @@ local defaults = {
         footstep_effects = true,
     },
     audio = {
-        volume = { effects = 1.0, music = 1.0 },
         footstep_effects = true,
-    },
-    system = {
-        auto_disconnect = { enabled = false, time = 60 },
-        language_filter = { enabled = false },
     },
 }
 
@@ -75,18 +66,6 @@ local function apply_settings()
 
     -- Audio Adjustments
     memory.volumes.footsteps = options.audio.footstep_effects and 1.0 or 0.0
-
-    pcall(function()
-        memory.volumes.music = options.audio.volume.music
-        memory.volumes.effects = options.audio.volume.effects
-    end)
-
-    -- System Toggles
-    local auto_disconnect = memory.auto_disconnect
-    local system_options = options.system
-    auto_disconnect.enabled = system_options.auto_disconnect.enabled
-    auto_disconnect.timeout_time = system_options.auto_disconnect.time
-    memory.language_filter.disabled = not system_options.language_filter.enabled
 end
 
 -- Staggered Initialization
@@ -101,11 +80,11 @@ coroutine.schedule(function()
 end)
 
 -- ============================================================================
--- 2. IMGUI DASHBOARD (Highly Compacted Layout)
+-- 2. IMGUI DASHBOARD (Compact Layout)
 -- ============================================================================
 local config_window = ui.window_state()
 config_window.title = "Client Configuration"
-config_window.size = {width = 380, height = 540} -- Significantly reduced to avoid scrollbar clipping
+config_window.size = {width = 380, height = 480} -- Shrunk down to perfectly fit the remaining settings
 config_window.resizable = false
 config_window.visible = false
 
@@ -116,7 +95,8 @@ ui.display(function()
             
             local window_still_open = ui.window(config_window, function(layout)
                 
-                layout:label("[GRAPHICS]{color:skin_accent weight:bold}")
+                layout:label("[GRAPHICS & PERFORMANCE]{color:skin_accent weight:bold}")
+                layout:space(5)
                 
                 -- Framerate Row
                 layout:label("Camera FPS (Cur: " .. tostring(options.graphics.framerate) .. ")")
@@ -157,33 +137,16 @@ ui.display(function()
                 local new_b = layout:slider("sld_gamma_b", options.graphics.gamma.blue, 0.5, 3.0)
                 if new_b ~= options.graphics.gamma.blue then options.graphics.gamma.blue = new_b; apply_settings(); settings.save() end
 
-                layout:space(10)
-                layout:label("[SYSTEM & AUDIO]{color:skin_accent weight:bold}")
+                layout:space(15)
+                layout:label("[AUDIO & EFFECTS]{color:skin_accent weight:bold}")
                 layout:space(5)
 
-                -- Audio Sliders
-                layout:label("[Music Volume (BGM) (" .. string.format("%.1f", options.audio.volume.music) .. ")]{color:system_white}")
-                local new_music = layout:slider("sld_vol_music", options.audio.volume.music, 0.0, 1.0)
-                if new_music ~= options.audio.volume.music then options.audio.volume.music = new_music; apply_settings(); settings.save() end
-
-                layout:label("[Sound Effects Volume (SE) (" .. string.format("%.1f", options.audio.volume.effects) .. ")]{color:system_white}")
-                local new_effects = layout:slider("sld_vol_effects", options.audio.volume.effects, 0.0, 1.0)
-                if new_effects ~= options.audio.volume.effects then options.audio.volume.effects = new_effects; apply_settings(); settings.save() end
-
-                layout:space(10)
-
                 -- Condensed Checkboxes
-                local particle_clicked, _ = layout:check("chk_particles", "Enable Footstep Particles", options.graphics.footstep_effects)
+                local particle_clicked, _ = layout:check("chk_particles", "Enable Visual Footstep Dust Particles", options.graphics.footstep_effects)
                 if particle_clicked then options.graphics.footstep_effects = not options.graphics.footstep_effects; apply_settings(); settings.save() end
 
-                local foot_clicked, _ = layout:check("chk_foot", "Enable Footstep Audio", options.audio.footstep_effects)
+                local foot_clicked, _ = layout:check("chk_foot", "Enable Physical Footstep Sound Volume", options.audio.footstep_effects)
                 if foot_clicked then options.audio.footstep_effects = not options.audio.footstep_effects; apply_settings(); settings.save() end
-
-                local filter_clicked, _ = layout:check("chk_filter", "Enable Profanity Filter", options.system.language_filter.enabled)
-                if filter_clicked then options.system.language_filter.enabled = not options.system.language_filter.enabled; apply_settings(); settings.save() end
-                
-                local afk_clicked, _ = layout:check("chk_afk", "Enable Auto-Disconnect (AFK Kick)", options.system.auto_disconnect.enabled)
-                if afk_clicked then options.system.auto_disconnect.enabled = not options.system.auto_disconnect.enabled; apply_settings(); settings.save() end
 
             end)
             
@@ -205,9 +168,10 @@ end)
 -- ============================================================================
 -- 3. COMMAND ROUTER
 -- ============================================================================
-command.register('cfg', function(args)
+command.register({'config', 'cfg'}, function(args)
     state.show_ui = not state.show_ui
     if state.show_ui then
-        chat.print("Config UI Opened.", ui.color.skin_accent)
+        -- Using the new semantic success log instead of the clunky ui.color lookup!
+        chat.success("Config UI Opened.")
     end
 end)

@@ -180,7 +180,25 @@ end
 
 do
     settings.save = function(id)
+        -- Catch the Trap: Did the developer pass an options table instead of an ID string?
+        if type(id) == 'table' then
+            local found_id = 'settings' -- Default fallback
+            -- Search the cache to find the specific ID this table belongs to
+            for cache_id, info in pairs(info_cache) do
+                if info.options == id then
+                    found_id = cache_id
+                    break
+                end
+            end
+            id = found_id
+        end
+
+        -- Fetch the cached info
         local info = info_cache[id or 'settings']
+        
+        -- Fail gracefully if it somehow still doesn't exist
+        if not info then return end 
+
         get_file(info.id, info.global):write('return ' .. format_table(info.options))
     end
 end
@@ -241,7 +259,7 @@ settings.settings_change = event.new()
 settings.get = function(path, id)
     local setting = info_cache[id or 'settings'].options
 
-    local tokens = path:split('%.')
+    local tokens = path:split('.')
     for i = 1, #tokens do
         setting = setting[tokens[i]]
     end
@@ -277,7 +295,7 @@ do
     settings.set = function(path, value, id)
         local setting_container = info_cache[id or 'settings'].options
 
-        local tokens = path:split('%.')
+        local tokens = path:split('.')
         local length = #tokens
         for i = 1, length - 1 do
             setting_container = setting_container[tokens[i]]

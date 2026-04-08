@@ -11,7 +11,7 @@ math.phi = (1 + math_sqrt(5)) / 2
 math.tau = 2 * math_pi
 
 local math_mult = function(...)
-    local mult = 0
+    local mult = 1
 
     for i = 1, select('#', ...) do
         mult = mult * select(i, ...)

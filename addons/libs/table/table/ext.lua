@@ -38,15 +38,17 @@ do
             return to
         end
 
-        prefix_search = function(entries, prefix, from, to)
-            local index = math_floor((to + from) / 2)
-            local entry = entries[index]
-            if entry:starts_with(prefix) then
-                return unpack(entries, find_lower_bound(entries, prefix, index, from), find_upper_bound(entries, prefix, index, to))
-            end
-
+		prefix_search = function(entries, prefix, from, to)
+            -- MOVED BOUNDS CHECK TO THE TOP TO PREVENT NIL CRASHES
             if from > to then
                 return
+            end
+
+            local index = math_floor((to + from) / 2)
+            local entry = entries[index]
+            
+            if entry:starts_with(prefix) then
+                return unpack(entries, find_lower_bound(entries, prefix, index, from), find_upper_bound(entries, prefix, index, to))
             end
 
             if entry < prefix then

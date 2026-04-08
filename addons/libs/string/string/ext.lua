@@ -32,7 +32,8 @@ string.split = function(str, delim, max)
 
     local start = 1
     repeat
-        local from, to = string_find(str, delim, start)
+        -- ADDED 'true' AS THE 4TH ARGUMENT TO DISABLE PATTERN MATCHING
+        local from, to = string_find(str, delim, start, true)
         split_count = split_count + 1
         split[split_count] = string_sub(str, start, (max == nil or split_count < max) and from and from - 1 or nil)
         start = to and to + 1

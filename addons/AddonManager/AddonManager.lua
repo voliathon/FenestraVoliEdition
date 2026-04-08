@@ -157,7 +157,7 @@ local function parse_markdown_to_windower(text)
     text = text:gsub("\n## (.-)\n", "\n[%1]{size:x-large weight:bold}\n")
     text = text:gsub("^### (.-)\n", "[%1]{size:large weight:bold color:system_gray}\n")
     text = text:gsub("\n### (.-)\n", "\n[%1]{size:large weight:bold color:system_gray}\n")
-    text = text:gsub("%*%*(.-)%*%-*", "[%1]{weight:bold}")
+    text = text:gsub("%*%*(.-)%*%*", "[%1]{weight:bold}")
     text = text:gsub("%*(.-)%*", "[%1]{style:italic}")
     text = text:gsub("`(.-)`", "[%1]{color:system_white}")
     return text
@@ -359,14 +359,16 @@ ui.display(function()
                             local tgl_label = pkg.loaded and "  🟢 Active" or "  ⚪ Offline"
                             local clicked, _ = canvas:check("tgl_" .. pkg.id, tgl_label, pkg.loaded)
                             
-                            if clicked then
+							if clicked then
                                 pkg.loaded = not pkg.loaded
                                 if pkg.loaded then
                                     core_command.input('/load ' .. pkg.id) 
                                     state.profiles[state.current_character][pkg.id] = true 
+                                    chat.success("AddonManager: Loaded '" .. pkg.name .. "'")
                                 else
                                     core_command.input('/unload ' .. pkg.id)
                                     state.profiles[state.current_character][pkg.id] = nil 
+                                    chat.warning("AddonManager: Unloaded '" .. pkg.name .. "'")
                                 end
                                 save_profiles() 
                             end
@@ -451,37 +453,41 @@ ui.display(function()
             readme_window.visible = false
         end
     end)
-    if not success then 
+	if not success then 
         state.show_ui = false 
         state.show_readme = false
-        chat.print("Marketplace UI Crash: " .. tostring(err), ui.color.system_error) 
+        chat.error("AddonManager UI Crash: " .. tostring(err))
     end
 end)
 
 -- ============================================================================
 -- 6. COMMAND ROUTER
 -- ============================================================================
-command.register('addon', function(args)
+command.register({'addon', 'addons'}, function(args)
     local success, err = pcall(function()
         if args[1] == "rescan" then
             scan_packages()
-            chat.print("AddonManager: Addons rescanned.", ui.color.skin_accent)
+            chat.success("AddonManager: Addons rescanned.")
         elseif args[1] == "profile" and args[2] then
             switch_profile(args[2])
             state.scanned = false
+        elseif args[1] == "reload" and args[2] then
+            -- Note: We still send '/pkg reload' to the core, but the user uses '/addon reload'
+            core_command.input('/pkg reload ' .. args[2])
+            chat.success("AddonManager: Reloading package '" .. args[2] .. "'...")
         else
             state.show_ui = not state.show_ui
             if state.show_ui then state.scanned = false end 
         end
     end)
-    if not success then chat.print("Command Crash: " .. tostring(err), 167) end
+    if not success then chat.error("Command Crash: " .. tostring(err)) end
 end)
 
 addon.unload = function()
-    chat.print("AddonManager has been unloaded.", ui.color.system_white)
+    chat.warning("AddonManager has been unloaded.")
 end
 
-chat.print("----------------------------------------------------", 207)
-chat.print("AddonManager Initialized. Type /addon to continue...", 207)
-chat.print("----------------------------------------------------", 207)
+chat.success("----------------------------------------------------")
+chat.success("AddonManager Initialized. Type /addon to continue...")
+chat.success("----------------------------------------------------")
 return addon
