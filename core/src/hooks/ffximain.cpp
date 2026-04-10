@@ -88,8 +88,8 @@ struct menu_entry
     std::uint32_t _unknown_24_27;
     std::uint32_t _unknown_28_2B;
 };
-
-std::vector<std::byte> temp_buffer{};
+//thread_local isolates the buffer per thread
+thread_local std::vector<std::byte> temp_buffer;
 std::uint16_t last_out_counter;
 
 constexpr std::size_t udp_packet_header_size = 28;

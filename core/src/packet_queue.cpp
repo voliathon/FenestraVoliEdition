@@ -54,7 +54,6 @@ private:
 
 static_assert(sizeof(packet_header) == 4);
 
-constexpr auto max_packet_size = 508;
 
 template<typename T>
 T read(std::span<std::byte const>& input)
@@ -95,9 +94,10 @@ T const& write(std::span<std::byte>& output, T const& value)
 }
 
 void windower::packet_queue::queue(
-    std::uint16_t id, std::vector<std::byte> data, std::u8string injected_by)
+    std::uint16_t id, std::span<std::byte const> data,
+    std::u8string_view injected_by)
 {
-    m_queue.emplace_back(id, std::move(data), std::move(injected_by));
+    m_queue.emplace_back(id, data, injected_by);
 }
 
 std::span<std::byte const> windower::packet_queue::process_buffer(
@@ -127,9 +127,8 @@ std::span<std::byte const> windower::packet_queue::process_buffer(
         }
         else
         {
-            m_queue.emplace_front(
-                id, std::vector<std::byte>{data.begin(), data.end()},
-                std::u8string{});
+            // Simply pass the span directly without a vector copy
+            m_queue.emplace_front(id, data, u8"");
             core::error(
                 u8"",
                 u8"WARNING!!! Client packet was delayed due to buffer "
@@ -141,8 +140,8 @@ std::span<std::byte const> windower::packet_queue::process_buffer(
     {
         auto const& packet = m_queue.front();
         process_packet(
-            output, packet.id, counter, timestamp, packet.data,
-            packet.injected_by);
+            output, packet.id, counter, timestamp,
+            std::span{packet.data.data(), packet.size}, packet.injected_by);
         m_queue.pop_front();
     }
 
@@ -151,7 +150,7 @@ std::span<std::byte const> windower::packet_queue::process_buffer(
 
 std::size_t windower::packet_queue::peek_size() const noexcept
 {
-    return m_queue.front().data.size() + sizeof(packet_header);
+    return m_queue.front().size + sizeof(packet_header);
 }
 
 void windower::packet_queue::process_packet(
@@ -194,8 +193,10 @@ void windower::packet_queue::process_packet(
 }
 
 windower::packet_queue::packet::packet(
-    std::uint16_t id, std::vector<std::byte> data,
+    std::uint16_t id, std::span<std::byte const> data_in,
     std::u8string_view injected_by) :
-    id{id},
-    data{data}, injected_by{injected_by}
-{}
+    id{id}, size{data_in.size()}, injected_by{injected_by}
+{
+    auto const copy_size = size > max_packet_size ? max_packet_size : size;
+    std::copy_n(data_in.begin(), copy_size, data.begin());
+}

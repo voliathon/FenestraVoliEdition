@@ -107,6 +107,8 @@ void windower::addon_manager::reload_all()
 
 void windower::addon_manager::run_until_idle()
 {
+    std::vector<std::u8string> failed_addons;
+
     for (auto const& a : m_loaded_addons)
     {
         try
@@ -115,8 +117,18 @@ void windower::addon_manager::run_until_idle()
         }
         catch (...)
         {
-            raise_error(a->package().get(), std::current_exception());
+            // Log the error immediately so the user sees the stack trace
+            core::error(a->package()->name(), std::current_exception());
+
+            // Queue the addon to be safely unloaded after the loop finishes
+            failed_addons.push_back(a->package()->name());
         }
+    }
+
+    // Safely execute the unloads now that we are done iterating
+    if (!failed_addons.empty())
+    {
+        unload(failed_addons);
     }
 }
 

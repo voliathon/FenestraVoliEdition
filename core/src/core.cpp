@@ -225,18 +225,6 @@ process_output(std::u8string_view component, std::u8string_view text)
     return temp;
 }
 
-template<typename T>
-bool try_pop(std::queue<T>& queue, std::mutex& mutex, T& result)
-{
-    std::lock_guard<std::mutex> guard{mutex};
-    if (queue.empty())
-    {
-        return false;
-    }
-    result = std::move(queue.front());
-    queue.pop();
-    return true;
-}
 }
 
 void windower::core::initialize() noexcept { instance(); }
@@ -577,17 +565,27 @@ void windower::core::update() noexcept
             addon_manager->run_until_idle();
         }
 
-        std::function<void()> function;
-        while (try_pop(m_queued_functions, m_queued_functions_mutex, function))
+        //Create a local, un-shared queue
+        std::queue<std::function<void()>> local_functions;
+
+        //Lock the mutex exactly once and steal all pending functions
+        {
+            std::lock_guard<std::mutex> guard{m_queued_functions_mutex};
+            std::swap(m_queued_functions, local_functions);
+        } // Mutex is instantly unlocked here!
+
+        //Execute the stolen functions completely lock-free
+        while (!local_functions.empty())
         {
             try
             {
-                function();
+                local_functions.front()();
             }
             catch (std::exception const&)
             {
                 error(u8"");
             }
+            local_functions.pop();
         }
     } // <-- FpuStateGuard is automatically destroyed here, returning CPU to
       // 32-bit for FFXI!

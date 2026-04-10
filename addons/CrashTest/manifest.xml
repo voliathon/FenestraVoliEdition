@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package>
+    <name>CrashTest</name>
+    <description>A test addon to verify engine stability.</description>
+    <author>Test</author>
+    <version>1.0.0.0</version>
+    <dependencies>
+        <dependency>chat</dependency>
+    </dependencies>
+</package>
