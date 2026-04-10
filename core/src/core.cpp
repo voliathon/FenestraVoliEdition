@@ -43,11 +43,119 @@
 #include "utility.hpp"
 #include <float.h>
 #include <gsl/gsl>
+#include <condition_variable>
 #include <mutex>
+#include <thread>
 
 namespace
 {
-std::mutex output_mutex;
+struct log_message
+{
+    std::wstring text;
+    bool is_error;
+};
+
+std::mutex log_mutex;
+std::condition_variable log_cv;
+std::vector<log_message> log_queue;
+bool log_shutdown = false;
+std::thread log_thread;
+
+void log_worker()
+{
+    auto output_handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
+    auto error_handle  = ::GetStdHandle(STD_ERROR_HANDLE);
+    std::vector<log_message> local_queue;
+
+    while (true)
+    {
+        {
+            // Sleep the background thread until there is a log message to
+            // process
+            std::unique_lock<std::mutex> lock{log_mutex};
+            log_cv.wait(
+                lock, [] { return !log_queue.empty() || log_shutdown; });
+
+            if (log_shutdown && log_queue.empty())
+            {
+                break;
+            }
+
+            // Steal the pending messages instantly to release the lock back to
+            // the game thread
+            std::swap(log_queue, local_queue);
+        }
+
+        // Process all console output safely in the background
+        for (auto& msg : local_queue)
+        {
+            auto handle = msg.is_error ? error_handle : output_handle;
+
+            ::CONSOLE_SCREEN_BUFFER_INFO buffer_info;
+            bool has_info = ::GetConsoleScreenBufferInfo(handle, &buffer_info);
+
+            // If the console cursor isn't at the start of a line, inject a
+            // newline
+            if (has_info && buffer_info.dwCursorPosition.X != 0)
+            {
+                msg.text.insert(msg.text.begin(), L'\n');
+            }
+
+            if (msg.is_error)
+            {
+                ::SetConsoleTextAttribute(
+                    handle, FOREGROUND_RED | FOREGROUND_INTENSITY);
+            }
+
+            ::DWORD written = 0;
+            ::WriteConsoleW(
+                handle, msg.text.data(), msg.text.size(), &written, nullptr);
+
+            if (msg.is_error)
+            {
+                ::SetConsoleTextAttribute(
+                    handle, has_info ? buffer_info.wAttributes
+                                     : (FOREGROUND_RED | FOREGROUND_GREEN |
+                                        FOREGROUND_BLUE));
+            }
+
+            ::OutputDebugStringW(msg.text.c_str());
+        }
+        local_queue.clear();
+    }
+}
+
+// Automatically cleans up the background thread when Windower unloads
+struct async_logger_cleanup
+{
+    ~async_logger_cleanup()
+    {
+        {
+            std::lock_guard<std::mutex> lock{log_mutex};
+            log_shutdown = true;
+        }
+        log_cv.notify_all();
+        if (log_thread.joinable())
+        {
+            log_thread.join();
+        }
+    }
+} cleanup_logger;
+
+void queue_log(std::wstring text, bool is_error)
+{
+    {
+        std::lock_guard<std::mutex> lock{log_mutex};
+        // Lazy-initialize the thread so it doesn't spin up unless a log
+        // actually happens
+        if (!log_thread.joinable())
+        {
+            log_thread = std::thread{log_worker};
+        }
+        log_queue.push_back({std::move(text), is_error});
+    }
+    log_cv.notify_one();
+}
 
 template<typename E>
 void get_type_name(std::u8string& result, E const& exception)
@@ -338,23 +446,7 @@ void windower::core::output(
     {
         auto w_text =
             to_wstring(process_output(component, text)).append(1, L'\n');
-
-        {
-            std::lock_guard<std::mutex> lock{output_mutex};
-            auto written       = ::DWORD{};
-            auto output_handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
-            ::CONSOLE_SCREEN_BUFFER_INFO buffer_info;
-            if (::GetConsoleScreenBufferInfo(output_handle, &buffer_info) &&
-                buffer_info.dwCursorPosition.X != 0)
-            {
-                w_text.insert(w_text.begin(), L'\n');
-            }
-
-            ::WriteConsoleW(
-                output_handle, w_text.data(), w_text.size(), &written, nullptr);
-        }
-
-        ::OutputDebugStringW(w_text.c_str());
+        queue_log(std::move(w_text), false);
     }
     else
     {
@@ -372,33 +464,7 @@ void windower::core::error(
     {
         auto w_text =
             to_wstring(process_output(component, text)).append(1, L'\n');
-
-        {
-            std::lock_guard<std::mutex> lock{output_mutex};
-            auto error_handle = ::GetStdHandle(STD_ERROR_HANDLE);
-            ::CONSOLE_SCREEN_BUFFER_INFO buffer_info;
-            if (::GetConsoleScreenBufferInfo(error_handle, &buffer_info))
-            {
-                if (buffer_info.dwCursorPosition.X != 0)
-                {
-                    w_text.insert(w_text.begin(), L'\n');
-                }
-            }
-            else
-            {
-                buffer_info.wAttributes =
-                    FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
-            }
-
-            ::SetConsoleTextAttribute(
-                error_handle, FOREGROUND_RED | FOREGROUND_INTENSITY);
-            auto written = ::DWORD{};
-            ::WriteConsoleW(
-                error_handle, w_text.data(), w_text.size(), &written, nullptr);
-            ::SetConsoleTextAttribute(error_handle, buffer_info.wAttributes);
-        }
-
-        ::OutputDebugStringW(w_text.c_str());
+        queue_log(std::move(w_text), true);
     }
     else
     {
