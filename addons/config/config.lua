@@ -13,8 +13,8 @@ local defaults = {
     graphics = {
         aspect_ratio = { auto = true, value = 16 / 9 },
         gamma = { red = 1.5, green = 1.5, blue = 1.5 },
-        framerate = 60,
-        animation_framerate = 60,
+        framerate = 30,           -- Changed to 30 FPS Default
+        animation_framerate = 30, -- Changed to 30 FPS Default
         clipping_plane = 10,
         footstep_effects = true,
     },
@@ -71,7 +71,7 @@ coroutine.schedule(function()
     if not success then
         chat.print("Config Addon Init Error: " .. tostring(err), ui.color.system_error)
     else
-        chat.print("Config Loaded: Type /cfg to open.", ui.color.skin_accent)
+        chat.print("Config Loaded: Type /config or /cfg to open.", ui.color.skin_accent)
     end
 end)
 
@@ -80,7 +80,7 @@ end)
 -- ============================================================================
 local config_window = ui.window_state()
 config_window.title = "Client Configuration"
-config_window.size = {width = 380, height = 480} -- Shrunk down to perfectly fit the remaining settings
+config_window.size = {width = 380, height = 480} 
 config_window.resizable = false
 config_window.visible = false
 
@@ -165,7 +165,6 @@ end)
 command.register({'config', 'cfg'}, function(args)
     state.show_ui = not state.show_ui
     if state.show_ui then
-        -- Using the new semantic success log instead of the clunky ui.color lookup!
         chat.success("Config UI Opened.")
     end
 end)

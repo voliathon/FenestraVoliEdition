@@ -26,6 +26,7 @@
 
 #include "ui/context.hpp"
 #include "ui/dimension.hpp"
+#include "ui/engine_console.hpp"
 
 #include <d3d8.h>
 
@@ -45,9 +46,14 @@ void user_interface::initialize(
 {
     m_context = std::make_unique<ui::context>(
         hwnd, d3d_device, screen_size, ui_size, render_size);
+    m_console = std::make_unique<ui::engine_console>();
 }
 
-void user_interface::reset() noexcept { m_context.reset(); }
+void user_interface::reset() noexcept
+{
+    m_console.reset();
+    m_context.reset();
+}
 
 void user_interface::activate_next_window() noexcept
 {
@@ -68,6 +74,15 @@ void user_interface::activate_previous_window() noexcept
 std::optional<::LRESULT>
 user_interface::process_message(::MSG const& message) const noexcept
 {
+    if (m_console)
+    {
+        // If the console handled the message (e.g., Tilde key or typing inside
+        // it), return immediately so the game/context ignores it.
+        if (auto result = m_console->process_message(message))
+        {
+            return result;
+        }
+    }
     return m_context ? m_context->process_message(message) : std::nullopt;
 }
 
@@ -91,6 +106,13 @@ void user_interface::render(ui::layer layer) noexcept
 {
     if (m_context)
     {
+        // 1. Submit the console widgets to the UI command buffer FIRST
+        if (layer == ui::layer::screen && m_console)
+        {
+            m_console->render(*m_context);
+        }
+
+        // 2. NOW tell the context to draw the layer and flush the stacks
         m_context->render(layer);
     }
 }

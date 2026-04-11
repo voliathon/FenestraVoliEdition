@@ -2,23 +2,32 @@ local ui = require('ui')
 local chat = require('chat')
 local command = require('command')
 local packet = require('packet')
+local settings = require('settings')
 local file = require('file')
 local ffi = require('ffi')
 local core_windower = require('core.windower')
 local core_command = require('core.command')
 
--- Explicitly binding the sandboxed base libraries
 local table = require('table')
 local string = require('string')
 local math = require('math')
 
-local profile_file = file.new('profiles.txt')
-
 local addon = {
     name = 'AddonManager',
     author = 'Voliathon of Bahamut',
-    version = '1.1'
+    version = '1.2'
 }
+
+-- ============================================================================
+-- 1. NATIVE SETTINGS & PERSISTENCE 
+-- ============================================================================
+local defaults = {
+    addons = {} -- Stores boolean states for the active character
+}
+
+-- The settings library automatically intercepts this and saves to: 
+-- addons/AddonManager/data/<CharName_Server>/profiles.lua
+local profile_settings = settings.load(defaults, 'profiles')
 
 local state = {
     show_ui = false,
@@ -27,119 +36,49 @@ local state = {
     show_readme = false,
     readme_title = "Readme",
     readme_content = "",
-    
     current_character = "Global", 
-    character_locked = false, 
-    profiles = {},
-    show_dropdown = false,
     show_dependencies = false 
 }
 
--- Cache table to prevent micro-stutters from repetitive disk I/O
 local version_cache = {}
-
--- ============================================================================
--- 1. NATIVE PERSISTENCE 
--- ============================================================================
-local function save_profiles()
-    local buffer = {}
-    for char_name, loaded_addons in pairs(state.profiles) do
-        for addon_id, is_active in pairs(loaded_addons) do
-            if is_active then
-                table.insert(buffer, char_name .. ":" .. addon_id)
-            end
-        end
-    end
-    
-    local final_string = table.concat(buffer, "|")
-    if final_string ~= "" then 
-        final_string = final_string .. "|" 
-    end
-    
-    profile_file:write(final_string)
-end
-
-local function load_profiles()
-    state.profiles = {}
-    local raw_data = ""
-    
-    if profile_file:exists() then
-        raw_data = profile_file:read()
-    end
-    
-    if raw_data and raw_data ~= "" then
-        for entry in raw_data:gmatch("([^|]+)") do
-            local char_name, addon_id = entry:match("([^:]+):([^:]+)")
-            if char_name and addon_id then
-                if not state.profiles[char_name] then state.profiles[char_name] = {} end
-                state.profiles[char_name][addon_id] = true
-            end
-        end
-    end
-    
-    if not state.profiles[state.current_character] then 
-        state.profiles[state.current_character] = {} 
-        save_profiles()
-    end
-end
-
-local function switch_profile(character_name)
-    state.current_character = character_name
-    state.character_locked = true 
-    
-    if not state.profiles[state.current_character] then 
-        state.profiles[state.current_character] = {} 
-    end
-    
-    for _, pkg in ipairs(state.packages) do
-        if pkg.category == "addon" then
-            local should_be_loaded = state.profiles[state.current_character][pkg.id] or false
-            
-            if pkg.loaded and not should_be_loaded then
-                core_command.input('/unload ' .. pkg.id)
-                pkg.loaded = false
-            elseif not pkg.loaded and should_be_loaded then
-                core_command.input('/load ' .. pkg.id)
-                pkg.loaded = true
-            end
-        end
-    end
-end
 
 -- ============================================================================
 -- 2. NETWORK LISTENER (Autoloads on Login)
 -- ============================================================================
 coroutine.schedule(function()
-    -- Yield for 1 frame to guarantee all *_service IPC channels are broadcasting
     coroutine.sleep_frame()
     
-    local packet = require('packet')
     packet.incoming:register_init({
         [{0x00A}] = function(p)
             if p and p.player_name then
                 local name = p.player_name
-                
-                if type(name) == 'cdata' then
-                    name = ffi.string(name)
-                else
-                    name = tostring(name)
-                end
+                if type(name) == 'cdata' then name = ffi.string(name) else name = tostring(name) end
                 
                 if name ~= "" and name:lower() ~= "global" and state.current_character ~= name then
                     state.current_character = name
-                    state.character_locked = true 
                     
-                    load_profiles()
-                    
-                    if state.profiles[name] then
-                        for addon_id, is_active in pairs(state.profiles[name]) do
-                            if is_active then
-                                core_command.input('/load ' .. addon_id)
+                    -- Wait 1 second for the account_service to register the server ID.
+                    -- This triggers settings.lua to dynamically swap your profile_settings 
+                    -- object to the newly logged-in character's file.
+                    coroutine.schedule(function()
+                        coroutine.sleep(1)
+                        
+                        -- Execute the user's saved loadout
+                        if profile_settings.addons then
+                            for addon_id, is_active in pairs(profile_settings.addons) do
+                                if is_active then
+                                    core_command.input('/load ' .. addon_id)
+                                end
                             end
                         end
-                    end
-                    
-                    state.scanned = false 
+                        
+                        state.scanned = false 
+                        
+                        -- COUNTER-MEASURE: Defeat the account_service forced load
+                        if not profile_settings.addons['config'] then
+                            core_command.input('/unload config')
+                        end
+                    end)
                 end
             end
         end
@@ -171,13 +110,11 @@ local scroll_view = ui.scroll_panel_state(430, scroll_view_content_height)
 
 local function update_scroll_canvas()
     local required_height = 50 
-    
     for _, pkg in ipairs(state.packages) do
         if pkg.category == "addon" then 
             required_height = required_height + 65 
         end
     end
-    
     if state.show_dependencies then
         required_height = required_height + 50 
         for _, pkg in ipairs(state.packages) do
@@ -186,7 +123,6 @@ local function update_scroll_canvas()
             end
         end
     end
-    
     local final_height = math.max(360, required_height)
     if final_height ~= scroll_view_content_height then
         scroll_view_content_height = final_height
@@ -196,33 +132,27 @@ end
 
 local function calculate_readme_height(text)
     if not text or text == "" then return 460 end
-    
     local total_height = 0
-    -- Iterate through every line individually
     for line in text:gmatch("([^\n]*)\n?") do
         if line == "" then
-            total_height = total_height + 15 -- Blank line spacing
+            total_height = total_height + 15 
         elseif line:match("^# ") then
-            total_height = total_height + 45 -- xx-large font height
+            total_height = total_height + 45 
         elseif line:match("^## ") then
-            total_height = total_height + 35 -- x-large font height
+            total_height = total_height + 35 
         elseif line:match("^### ") then
-            total_height = total_height + 25 -- large font height
+            total_height = total_height + 25 
         else
-            -- Standard text wrap. A 580px canvas fits about 85 chars of standard font.
             local chars = #line
             local wraps = math.max(1, math.ceil(chars / 85))
             total_height = total_height + (wraps * 20)
         end
     end
-    
-    -- Add 50px of bottom padding so the very last line never clips
     return math.max(460, total_height + 50)
 end
 
 local function scan_packages()
     state.packages = {}
-    load_profiles() 
     
     local raw_data = core_windower.get_package_list()
     if not raw_data then return end
@@ -231,11 +161,8 @@ local function scan_packages()
         local raw_name, pkg_version, pkg_path, has_readme_str = pkg_str:match("([^|]+)|([^|]+)|([^|]+)|([^|]+)")
         if raw_name then
             local pkg_name = raw_name:match("^%s*(.-)%s*$")
-            
-            -- Bypass C++ and read the exact string directly from the manifest file
             local exact_version = pkg_version:match("^%s*([%d%.]+)") or pkg_version 
             
-            -- Use Cache to prevent disk I/O micro-stutters
             if version_cache[pkg_path] then
                 exact_version = version_cache[pkg_path]
             else
@@ -243,7 +170,6 @@ local function scan_packages()
                 if manifest_file:exists() then
                     local content = manifest_file:read()
                     if content then
-                        -- Extract literally whatever is between the <version> tags
                         local raw_v = content:match("<version>%s*(.-)%s*</version>")
                         if raw_v then exact_version = raw_v end
                     end
@@ -262,7 +188,8 @@ local function scan_packages()
                 cat = "dependency"
             end
 
-            local is_loaded = (state.profiles[state.current_character] and state.profiles[state.current_character][pkg_name] == true)
+            -- Natively reads from the settings library!
+            local is_loaded = (profile_settings.addons and profile_settings.addons[pkg_name] == true)
             
             table.insert(state.packages, {
                 id = pkg_name, 
@@ -309,48 +236,10 @@ ui.display(function()
                 
                 layout:label("ACTIVE PROFILE: " .. state.current_character:upper(), ui.color.skin_accent)
                 layout:space(5)
-                
-                local clicked_dd, _ = layout:check("chk_dd_toggle", "⇄ Switch Profile", state.show_dropdown)
-                if clicked_dd then state.show_dropdown = not state.show_dropdown end
-                
-                -- Track alt profiles for dynamic layout sizing
-                local alt_profiles = {}
-                for char_name, _ in pairs(state.profiles) do
-                    if char_name ~= state.current_character then
-                        table.insert(alt_profiles, char_name)
-                    end
-                end
-                
-                if state.show_dropdown then
-                    if #alt_profiles > 0 then
-                        layout:space(5)
-                        -- NO MORE SCROLLBOX: Just clean, inline buttons
-                        for _, char_name in ipairs(alt_profiles) do
-                            if layout:button("btn_prof_"..char_name, "   Load " .. char_name .. "'s Profile", false) then
-                                state.current_character = char_name
-                                state.show_dropdown = false
-                                state.scanned = false
-                            end
-                        end
-                        layout:space(5)
-                    else
-                        layout:label("  No other profiles found.", ui.color.system_disabled)
-                    end
-                end
-                
-                layout:space(5)
                 layout:label("──────────────────────────────────────────", ui.color.system_gray)
                 layout:space(5)
 
-                -- DYNAMIC VIEWPORT ALGORITHM
-                -- Base height stretches all the way to the bottom of the 550px window
-                local viewport_height = 440 
-                if state.show_dropdown and #alt_profiles > 0 then
-                    -- If profiles are open, shrink the list by ~30px per profile so it doesn't get pushed out of the window
-                    viewport_height = math.max(200, 440 - (#alt_profiles * 30) - 20)
-                end
-
-                layout:height(viewport_height):scroll_panel(scroll_view, function(canvas)
+                layout:height(440):scroll_panel(scroll_view, function(canvas)
                     
                     for index, pkg in ipairs(state.packages) do
                         if pkg.category == "addon" then
@@ -359,18 +248,23 @@ ui.display(function()
                             local tgl_label = pkg.loaded and "  🟢 Active" or "  ⚪ Offline"
                             local clicked, _ = canvas:check("tgl_" .. pkg.id, tgl_label, pkg.loaded)
                             
-							if clicked then
+                            if clicked then
                                 pkg.loaded = not pkg.loaded
+                                
+                                -- Update the settings library map
+                                if not profile_settings.addons then profile_settings.addons = {} end
+                                profile_settings.addons[pkg.id] = pkg.loaded
+                                
                                 if pkg.loaded then
                                     core_command.input('/load ' .. pkg.id) 
-                                    state.profiles[state.current_character][pkg.id] = true 
                                     chat.success("AddonManager: Loaded '" .. pkg.name .. "'")
                                 else
                                     core_command.input('/unload ' .. pkg.id)
-                                    state.profiles[state.current_character][pkg.id] = nil 
                                     chat.warning("AddonManager: Unloaded '" .. pkg.name .. "'")
                                 end
-                                save_profiles() 
+                                
+                                -- Save the file to the hard drive
+                                settings.save('profiles') 
                             end
 
                             if pkg.has_readme then
@@ -380,7 +274,6 @@ ui.display(function()
                                     local raw_text = core_windower.get_package_readme(pkg.id) or ""
                                     state.readme_content = parse_markdown_to_windower(raw_text)
                                     
-                                    -- Recalculate and reset the scroll canvas for dependencies
                                     local dynamic_h = calculate_readme_height(raw_text)
                                     readme_scroll = ui.scroll_panel_state(580, dynamic_h)
                                     
@@ -420,7 +313,6 @@ ui.display(function()
                                         local raw_text = core_windower.get_package_readme(pkg.id) or ""
                                         state.readme_content = parse_markdown_to_windower(raw_text)
                                         
-                                        -- Recalculate and reset the scroll canvas for dependencies
                                         local dynamic_h = calculate_readme_height(raw_text)
                                         readme_scroll = ui.scroll_panel_state(580, dynamic_h)
                                         
@@ -453,7 +345,7 @@ ui.display(function()
             readme_window.visible = false
         end
     end)
-	if not success then 
+    if not success then 
         state.show_ui = false 
         state.show_readme = false
         chat.error("AddonManager UI Crash: " .. tostring(err))
@@ -468,11 +360,7 @@ command.register({'addon', 'addons'}, function(args)
         if args[1] == "rescan" then
             scan_packages()
             chat.success("AddonManager: Addons rescanned.")
-        elseif args[1] == "profile" and args[2] then
-            switch_profile(args[2])
-            state.scanned = false
         elseif args[1] == "reload" and args[2] then
-            -- Switched from '/pkg reload' to native '/reload'
             core_command.input('/reload ' .. args[2])
             chat.success("AddonManager: Reloading package '" .. args[2] .. "'...")
         else

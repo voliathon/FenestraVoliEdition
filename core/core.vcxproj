@@ -111,6 +111,7 @@
     <ClInclude Include="src\ui\dimension.hpp" />
     <ClInclude Include="src\ui\direction.hpp" />
     <ClInclude Include="src\ui\dwrite_iids.hpp" />
+    <ClInclude Include="src\ui\engine_console.hpp" />
     <ClInclude Include="src\ui\ffxi_image.hpp" />
     <ClInclude Include="src\ui\id.hpp" />
     <ClInclude Include="src\ui\inline_object.hpp" />
@@ -228,6 +229,7 @@
     <ClCompile Include="src\ui\cursor.cpp" />
     <ClCompile Include="src\ui\data_buffer_traits.cpp" />
     <ClCompile Include="src\ui\context.cpp" />
+    <ClCompile Include="src\ui\engine_console.cpp" />
     <ClCompile Include="src\ui\ffxi_image.cpp" />
     <ClCompile Include="src\ui\inline_object.cpp" />
     <ClCompile Include="src\ui\markdown.cpp" />

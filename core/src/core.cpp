@@ -39,6 +39,7 @@
 #include "hooks/user32.hpp"
 #include "settings.hpp"
 #include "ui/user_interface.hpp"
+#include "ui/engine_console.hpp"
 #include "unicode.hpp"
 #include "utility.hpp"
 #include <float.h>
@@ -92,7 +93,8 @@ void log_worker()
             auto handle = msg.is_error ? error_handle : output_handle;
 
             ::CONSOLE_SCREEN_BUFFER_INFO buffer_info;
-            bool has_info = ::GetConsoleScreenBufferInfo(handle, &buffer_info);
+            bool const has_info =
+                ::GetConsoleScreenBufferInfo(handle, &buffer_info);
 
             // If the console cursor isn't at the start of a line, inject a
             // newline
@@ -120,6 +122,16 @@ void log_worker()
             }
 
             ::OutputDebugStringW(msg.text.c_str());
+
+            // --- SEND TO IN-GAME UI CONSOLE ---
+            auto u8_text = windower::to_u8string(msg.text);
+            // Strip trailing newlines so we don't get double-spacing in the UI
+            while (!u8_text.empty() &&
+                   (u8_text.back() == u8'\n' || u8_text.back() == u8'\r'))
+            {
+                u8_text.pop_back();
+            }
+            windower::ui::engine_console::push_log(u8_text);
         }
         local_queue.clear();
     }
@@ -128,6 +140,12 @@ void log_worker()
 // Automatically cleans up the background thread when Windower unloads
 struct async_logger_cleanup
 {
+    constexpr async_logger_cleanup() noexcept                    = default;
+    async_logger_cleanup(async_logger_cleanup const&)            = delete;
+    async_logger_cleanup(async_logger_cleanup&&)                 = delete;
+    async_logger_cleanup& operator=(async_logger_cleanup const&) = delete;
+    async_logger_cleanup& operator=(async_logger_cleanup&&)      = delete;
+
     ~async_logger_cleanup()
     {
         {
@@ -605,7 +623,12 @@ void windower::core::update() noexcept
             unsigned int original_state;
 
         public:
-            FpuStateGuard()
+            FpuStateGuard(FpuStateGuard const&)            = delete;
+            FpuStateGuard(FpuStateGuard&&)                 = delete;
+            FpuStateGuard& operator=(FpuStateGuard const&) = delete;
+            FpuStateGuard& operator=(FpuStateGuard&&)      = delete;
+
+            FpuStateGuard() noexcept
             {
                 // Save FFXI's 32-bit state and force CPU to 64-bit (_PC_53)
                 _controlfp_s(&original_state, 0, 0);

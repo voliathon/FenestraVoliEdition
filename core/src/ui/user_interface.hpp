@@ -28,6 +28,7 @@
 #include "ui/context.hpp"
 #include "ui/dimension.hpp"
 #include "ui/layer.hpp"
+#include "ui/engine_console.hpp"
 
 #include <windows.h>
 
@@ -65,6 +66,7 @@ public:
 
 private:
     std::unique_ptr<ui::context> m_context;
+    std::unique_ptr<ui::engine_console> m_console;
 };
 
 }

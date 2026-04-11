@@ -22,5 +22,7 @@
         <dependency>os</dependency>
         <dependency>ipc</dependency>
         <dependency>memory</dependency>
+		<dependency>settings</dependency>
+		<dependency>file</dependency>
     </dependencies>
 </package>

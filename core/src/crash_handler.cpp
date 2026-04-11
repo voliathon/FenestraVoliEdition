@@ -48,6 +48,9 @@
 #include <string_view>
 #include <vector>
 
+#include <fstream>
+#include <iomanip>
+
 namespace
 {
 
@@ -326,10 +329,67 @@ void windower::crash_handler::crash(void* exception) const
     auto reporter = windower_path() / u8"windower.exe";
     auto args     = quote_argument(reporter.wstring()) + L" report-crash " +
                 m_full_path_quoted;
+
     if (auto ptr = static_cast<::EXCEPTION_POINTERS*>(exception))
     {
         args.append(L" --signature ");
         args.append(quote_argument(get_signature(*ptr)));
+
+        // --- GENERATE REPORT.MD ---
+        auto report_path = m_path / u8"report.md";
+        std::ofstream report(report_path);
+        if (report)
+        {
+            report << "# Windower 5 Engine Crash Report\n\n";
+
+            auto sig = get_signature(*ptr);
+            std::string narrow_sig;
+            narrow_sig.reserve(sig.size());
+            for (auto const wc : sig)
+            {
+                narrow_sig.push_back(static_cast<char>(wc));
+            }
+
+            report << "**Signature:** `" << narrow_sig << "`\n\n";
+
+            report << "### Exception Details\n";
+            report << "- **Code:** `0x" << std::hex << std::uppercase
+                   << ptr->ExceptionRecord->ExceptionCode << "`\n";
+            report << "- **Address (Instruction Pointer):** `0x"
+                   << ptr->ExceptionRecord->ExceptionAddress << "`\n";
+
+            // 0xC0000005 is EXCEPTION_ACCESS_VIOLATION
+            if (ptr->ExceptionRecord->ExceptionCode == 0xC0000005)
+            {
+                report << "- **Violation Type:** "
+                       << (ptr->ExceptionRecord->ExceptionInformation[0] == 0
+                               ? "Read"
+                               : (ptr->ExceptionRecord
+                                              ->ExceptionInformation[0] == 1
+                                      ? "Write"
+                                      : "Data Execution Prevention (DEP)"))
+                       << "\n";
+                report << "- **Target Memory Address:** `0x"
+                       << ptr->ExceptionRecord->ExceptionInformation[1]
+                       << "`\n";
+            }
+
+            report << "\n### CPU Registers\n";
+            report << "```text\n";
+#if defined(_M_IX86) // FFXI is a 32-bit process
+            report << "EAX: 0x" << std::hex << ptr->ContextRecord->Eax << "\n";
+            report << "EBX: 0x" << std::hex << ptr->ContextRecord->Ebx << "\n";
+            report << "ECX: 0x" << std::hex << ptr->ContextRecord->Ecx << "\n";
+            report << "EDX: 0x" << std::hex << ptr->ContextRecord->Edx << "\n";
+            report << "ESI: 0x" << std::hex << ptr->ContextRecord->Esi << "\n";
+            report << "EDI: 0x" << std::hex << ptr->ContextRecord->Edi << "\n";
+            report << "EBP: 0x" << std::hex << ptr->ContextRecord->Ebp << "\n";
+            report << "ESP: 0x" << std::hex << ptr->ContextRecord->Esp << "\n";
+            report << "EIP: 0x" << std::hex << ptr->ContextRecord->Eip << "\n";
+#endif
+            report << "```\n";
+        }
+        // --- END REPORT.MD ---
     }
 
     ::PROCESS_INFORMATION process_info = {};

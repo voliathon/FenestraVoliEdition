@@ -21,7 +21,7 @@ local tostring = tostring
 local type = type
 local account_login = account.login
 local account_logout = account.logout
-local windower_settings_path = windower.settings_path
+local windower_package_path = windower.package_path
 
 local info_cache = {}
 
@@ -48,7 +48,7 @@ do
     end
 
     get_file = function(id, global)
-        local settings_file = file_new(windower_settings_path .. '\\' .. make_account_name(global) .. '\\' .. id .. '.lua')
+		local settings_file = file_new(windower_package_path .. '\\data\\' .. make_account_name(global) .. '\\' .. id .. '.lua')
         settings_file:create_directories()
         return settings_file
     end
