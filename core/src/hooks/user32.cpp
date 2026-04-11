@@ -36,6 +36,10 @@
 #include <propvarutil.h>
 #include <windowsx.h>
 
+//I need that audio control! Gimmie Gimmie!
+#include <mmdeviceapi.h>
+#include <audiopolicy.h>
+
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -127,6 +131,45 @@ bool check_class_name(T const* ptr, T const (&class_name)[N]) noexcept
     return std::basic_string_view<T>{ptr} == class_name;
 }
 
+void set_process_muted(bool mute) noexcept
+{
+    // Force COM initialization for this thread just in case the secondary
+    // instance is firing this from an uninitialized background thread.
+    bool const com_initialized =
+        SUCCEEDED(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED));
+
+    winrt::com_ptr<::IMMDeviceEnumerator> enumerator;
+    if (SUCCEEDED(
+            ::CoCreateInstance(
+                __uuidof(::MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+                IID_PPV_ARGS(enumerator.put()))))
+    {
+        winrt::com_ptr<::IMMDevice> device;
+        if (SUCCEEDED(enumerator->GetDefaultAudioEndpoint(
+                eRender, eConsole, device.put())))
+        {
+            winrt::com_ptr<::IAudioSessionManager> session_manager;
+            if (SUCCEEDED(device->Activate(
+                    __uuidof(::IAudioSessionManager), CLSCTX_ALL, nullptr,
+                    (void**) session_manager.put())))
+            {
+                winrt::com_ptr<::ISimpleAudioVolume> audio_volume;
+                if (SUCCEEDED(session_manager->GetSimpleAudioVolume(
+                        nullptr, FALSE, audio_volume.put())))
+                {
+                    audio_volume->SetMute(mute, nullptr);
+                }
+            }
+        }
+    }
+
+    // Clean up only if we were the ones who initialized it
+    if (com_initialized)
+    {
+        ::CoUninitialize();
+    }
+}
+
 extern "C" ::LRESULT CALLBACK ffxi_wnd_proc(
     ::HWND hwnd, ::UINT uMsg, ::WPARAM wParam, ::LPARAM lParam) noexcept
 {
@@ -169,9 +212,14 @@ extern "C" ::LRESULT CALLBACK ffxi_wnd_proc(
         }
     }
 
-    switch (uMsg)
+switch (uMsg)
     {
     default: break;
+    case WM_ACTIVATE:
+        // WA_INACTIVE means the specific window is losing focus
+        set_process_muted(LOWORD(wParam) == WA_INACTIVE);
+        break;
+    case WM_ACTIVATEAPP: set_process_muted(wParam == FALSE); break;
     case WM_SETTEXT:
         if (data->update_title)
         {
