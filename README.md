@@ -5,7 +5,7 @@ I then wanted to understand C++ more and what was done in core. They don't teach
 
 I used (Visual Studio 2026 / v145).
 
-> **Note for Developers:** I did rehandle the IPC and the migration to the .NET 10 runtime. I totally used AI tools to /assist <me> in developing.  Notice that word? /assist. It's faster than learning at University and far cheaper. You don't gotta let it do everything as it won't work 100% of the time but it is like having a pear dev.
+> **Note for Developers:** I did rehandle the IPC and the migration to the .NET 10 runtime. I totally used AI tools to /assist <me> in developing.  Notice that word? /assist. It's faster than learning at University and far cheaper. You don't gotta let it do everything as it won't work 100% of the time but it is like having a peer dev.
 
 ## Build Requirements
 To compile this project locally, you will need the following installed:

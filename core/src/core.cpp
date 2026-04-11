@@ -155,7 +155,12 @@ struct async_logger_cleanup
         log_cv.notify_all();
         if (log_thread.joinable())
         {
-            log_thread.join();
+            // telling the DLL to let go of the thread and allow the OS to kill
+            // the process immediately without waiting. This is necessary to
+            // avoid deadlocks on shutdown if the thread is currently blocked in
+            // a Windows API call that doesn't respond to cancellation (e.g.
+            // WriteConsoleW).
+            log_thread.detach();
         }
     }
 } cleanup_logger;
