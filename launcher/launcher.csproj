@@ -9,6 +9,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>disable</Nullable>
+    <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
     <ReleaseBuild Condition=" '$(ReleaseBuild)' == '' ">true</ReleaseBuild>
     <ReleaseConstants Condition=" '$(ReleaseBuild)' == 'true' ">WINDOWER_RELEASE_BUILD</ReleaseConstants>
     <ReleaseConstants Condition=" '$(ReleaseBuild)' != 'true' ">WINDOWER_TEST_BUILD</ReleaseConstants>
