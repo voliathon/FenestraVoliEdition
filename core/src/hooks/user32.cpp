@@ -220,6 +220,16 @@ switch (uMsg)
         set_process_muted(LOWORD(wParam) == WA_INACTIVE);
         break;
     case WM_ACTIVATEAPP: set_process_muted(wParam == FALSE); break;
+    case WM_SYSCOMMAND:
+        // Traps the exact moment the minimize button is clicked
+        if ((wParam & 0xFFF0) == SC_MINIMIZE)
+            set_process_muted(true);
+        break;
+    case WM_SIZE:
+        // Traps the window state actually becoming minimized
+        if (wParam == SIZE_MINIMIZED)
+            set_process_muted(true);
+        break;
     case WM_SETTEXT:
         if (data->update_title)
         {

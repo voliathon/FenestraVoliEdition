@@ -139,22 +139,27 @@ char32_t decode_autotranslate(
 
 std::u8string to_u8string(std::wstring_view str) noexcept
 {
-    auto result     = std::u8string{};
+    // MEMORY FIX: Thread-local static buffer prevents constant heap
+    // reallocation during high-frequency string conversions.
+    thread_local std::u8string buffer;
+    buffer.clear();
+
     auto size       = str.size();
     auto error_code = U_ZERO_ERROR;
     do
     {
-        result.resize(size);
+        buffer.resize(size);
         auto result_size = std::int32_t{};
         ::u_strToUTF8WithSub(
-            reinterpret_cast<char*>(result.data()), size, &result_size,
+            reinterpret_cast<char*>(buffer.data()), buffer.size(), &result_size,
             reinterpret_cast<::UChar const*>(str.data()), str.size(), U'\uFFFD',
             nullptr, &error_code);
         size = result_size;
     }
-    while (size > result.size());
-    result.resize(size);
-    return result;
+    while (size > buffer.size());
+
+    buffer.resize(size);
+    return buffer;
 }
 
 std::u8string to_u8string(sjis_string_view str) noexcept
@@ -171,22 +176,26 @@ std::u8string to_u8string(sjis_string_view str) noexcept
 
 std::wstring to_wstring(std::u8string_view str) noexcept
 {
-    auto result     = std::wstring{};
+    // MEMORY FIX: Thread-local static buffer
+    thread_local std::wstring buffer;
+    buffer.clear();
+
     auto size       = str.size();
     auto error_code = U_ZERO_ERROR;
     do
     {
-        result.resize(size);
+        buffer.resize(size);
         auto result_size = std::int32_t{};
         ::u_strFromUTF8WithSub(
-            reinterpret_cast<::UChar*>(result.data()), size, &result_size,
-            reinterpret_cast<char const*>(str.data()), str.size(), U'\uFFFD',
-            nullptr, &error_code);
+            reinterpret_cast<::UChar*>(buffer.data()), buffer.size(),
+            &result_size, reinterpret_cast<char const*>(str.data()), str.size(),
+            U'\uFFFD', nullptr, &error_code);
         size = result_size;
     }
-    while (size > result.size());
-    result.resize(size);
-    return result;
+    while (size > buffer.size());
+
+    buffer.resize(size);
+    return buffer;
 }
 
 std::wstring to_wstring(sjis_string_view str) noexcept
