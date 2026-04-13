@@ -36,6 +36,8 @@ local -- params
     begin_scope_ptr,
     end_scope_ptr,
     set_enabled_ptr,
+    push_style_ptr,
+    pop_style_ptr,
     set_bounds_ptr,
     button_ptr,
     check_ptr,
@@ -316,6 +318,16 @@ local end_scope_t = ffi.typeof(
 local set_enabled_t = ffi.typeof(
     'void(*)($&,bool)',
     context_t)
+
+-- 
+local push_style_t = ffi.typeof(
+    'void(*)($&,bool,int32_t,bool,int32_t,bool,int32_t,bool,float)',
+    context_t)
+local pop_style_t = ffi.typeof(
+    'void(*)($&)',
+    context_t)
+-------------------------
+
 local set_bounds_t = ffi.typeof(
     'void(*)($&,float,float,float,float)',
     context_t)
@@ -373,6 +385,12 @@ local end_scroll_panel = end_scroll_panel_t(end_scroll_panel_ptr)
 local begin_scope = begin_scope_t(begin_scope_ptr)
 local end_scope = end_scope_t(end_scope_ptr)
 local set_enabled = set_enabled_t(set_enabled_ptr)
+
+-- 
+local push_style_native = push_style_t(push_style_ptr)
+local pop_style_native = pop_style_t(pop_style_ptr)
+-----------------------
+
 local set_bounds = set_bounds_t(set_bounds_ptr)
 
 local button = button_t(button_ptr)
@@ -391,6 +409,43 @@ local rectangle_patch = rectangle_patch_t(rectangle_patch_ptr)
 local rectangle_nine_patch = rectangle_nine_patch_t(rectangle_nine_patch_ptr)
 
 local ui = {}
+
+-- --- CASCADING STYLING SYSTEM ---
+ui.push_style = function(style)
+    if not current_context then return end
+    
+    local has_text, text_color = false, 0
+    local has_bg, bg_color = false, 0
+    local has_border, border_color = false, 0
+    local has_opacity, opacity = false, 1.0
+
+    if style then
+        if style.text_color then 
+            has_text = true
+            text_color = style.text_color 
+        end
+        if style.background_color then 
+            has_bg = true
+            bg_color = style.background_color 
+        end
+        if style.border_color then 
+            has_border = true
+            border_color = style.border_color 
+        end
+        if style.opacity then 
+            has_opacity = true
+            opacity = style.opacity 
+        end
+    end
+
+    push_style_native(current_context, has_text, text_color, has_bg, bg_color, has_border, border_color, has_opacity, opacity)
+end
+
+ui.pop_style = function()
+    if not current_context then return end
+    pop_style_native(current_context)
+end
+-- ------------------------------------
 
 ui.system_color = function(index)
     local context = get_context()

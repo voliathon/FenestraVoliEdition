@@ -109,23 +109,42 @@ void windower::addon_manager::run_until_idle()
 {
     std::vector<std::u8string> failed_addons;
 
+    // Take a safe snapshot of the raw pointers currently loaded.
+    // This prevents fatal Iterator Invalidation if an addon (like AddonManager)
+    // executes an /unload command while this loop is running!
+    std::vector<addon*> snapshot;
     for (auto const& a : m_loaded_addons)
     {
-        try
-        {
-            a->run_until_idle();
-        }
-        catch (...)
-        {
-            // Log the error immediately so the user sees the stack trace
-            core::error(a->package()->name(), std::current_exception());
+        snapshot.push_back(a.get());
+    }
 
-            // Queue the addon to be safely unloaded after the loop finishes
-            failed_addons.push_back(a->package()->name());
+    // Iterate over the safe snapshot
+    for (auto* a : snapshot)
+    {
+        // Verify the addon wasn't unloaded by another addon earlier in this
+        // exact loop!
+        auto it = std::find_if(
+            m_loaded_addons.begin(), m_loaded_addons.end(),
+            [a](auto const& ptr) { return ptr.get() == a; });
+
+        if (it != m_loaded_addons.end())
+        {
+            try
+            {
+                a->run_until_idle();
+            }
+            catch (...)
+            {
+                // Log the error immediately so the user sees the stack trace
+                core::error(a->package()->name(), std::current_exception());
+
+                // Queue the addon to be safely unloaded after the loop finishes
+                failed_addons.push_back(a->package()->name());
+            }
         }
     }
 
-    // Safely execute the unloads now that we are done iterating
+    // Safely execute the unloads for addons that threw Lua exceptions
     if (!failed_addons.empty())
     {
         unload(failed_addons);

@@ -102,7 +102,29 @@ extern "C"
 
     void end_scope(context& ctx) { ctx.pop_enabled(); }
 
-    void set_enabled(context& ctx, bool enabled) { ctx.enabled(enabled); }
+void set_enabled(context& ctx, bool enabled) { ctx.enabled(enabled); }
+
+    // --- STYLING SYSTEM WRAPPERS ---
+    void push_style(
+        context& ctx, bool has_text, std::int32_t text_color, bool has_bg,
+        std::int32_t bg_color, bool has_border, std::int32_t border_color,
+        bool has_opacity, float opacity)
+    {
+        style_descriptor style;
+        if (has_text)
+            style.text_color = color{text_color};
+        if (has_bg)
+            style.background_color = color{bg_color};
+        if (has_border)
+            style.border_color = color{border_color};
+        if (has_opacity)
+            style.opacity = opacity;
+
+        ctx.push_style(style);
+    }
+
+    void pop_style(context& ctx) { ctx.pop_style(); }
+    // -----------------------------------
 
     void set_bounds(context& ctx, float x0, float y0, float x1, float y1)
     {
@@ -253,6 +275,11 @@ int load_ui_module(lua::state s)
     lua::push(guard, &ui::wrappers::begin_scope);
     lua::push(guard, &ui::wrappers::end_scope);
     lua::push(guard, &ui::wrappers::set_enabled);
+
+    // Push the new style system
+    lua::push(guard, &ui::wrappers::push_style);
+    lua::push(guard, &ui::wrappers::pop_style);
+
     lua::push(guard, &ui::wrappers::set_bounds);
     lua::push(guard, &ui::wrappers::button);
     lua::push(guard, &ui::wrappers::check);

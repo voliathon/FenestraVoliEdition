@@ -931,31 +931,39 @@ void windower::package_manager::populate_installed_packages(
 {
     namespace fs = std::filesystem;
 
-    if (fs::exists(directory))
+    try
     {
-        for (auto const& entry : fs::directory_iterator{directory})
+        if (fs::exists(directory))
         {
-            try
+            for (auto const& entry : fs::directory_iterator{directory})
             {
-                auto folder_name  = entry.path().filename().u8string();
-                bool has_manifest = fs::exists(entry.path() / u8"manifest.xml");
-                bool has_lua =
-                    fs::exists(entry.path() / (folder_name + u8".lua"));
-
-                // If either the XML or the naked Lua file exists, register the
-                // package
-                if (has_manifest || has_lua)
+                try
                 {
-                    vertex v{package{entry.path(), can_update}};
-                    m_installed_packages.try_emplace(
-                        v.value->name(), std::move(v));
+                    auto folder_name = entry.path().filename().u8string();
+                    bool has_manifest =
+                        fs::exists(entry.path() / u8"manifest.xml");
+                    bool has_lua =
+                        fs::exists(entry.path() / (folder_name + u8".lua"));
+
+                    if (has_manifest || has_lua)
+                    {
+                        vertex v{package{entry.path(), can_update}};
+                        m_installed_packages.try_emplace(
+                            v.value->name(), std::move(v));
+                    }
+                }
+                catch (std::runtime_error const&)
+                {
+                    core::error(u8"package manager");
                 }
             }
-            catch (std::runtime_error const&)
-            {
-                core::error(u8"package manager");
-            }
         }
+    }
+    catch (std::exception const& e)
+    {
+        // SAFTEY NET: Catch OS-level locks so they don't bubble up into the
+        // noexcept constructor!
+        core::error(u8"package manager", e);
     }
 }
 
@@ -1027,7 +1035,11 @@ windower::package_manager::load_order_impl(
             auto const it = m_installed_packages.find(name);
             if (it == m_installed_packages.end())
             {
-                throw package_error{u8"PKG:P1", name};
+                // SAFETY NET: Log and skip instead of throwing!
+                core::error(
+                    u8"package manager",
+                    u8"Cannot load missing package: " + name);
+                continue;
             }
             topological_sort(results, name);
         }
@@ -1071,7 +1083,10 @@ void windower::package_manager::topological_sort(
     {
         if (required)
         {
-            throw package_error{u8"PKG:P2", name};
+            // SAFETY NET: Log and safely abort this dependency branch.
+            core::error(
+                u8"package manager", u8"Missing required dependency: " + name);
+            return;
         }
     }
     else
@@ -1079,7 +1094,11 @@ void windower::package_manager::topological_sort(
         auto const color = it->second.color;
         if (color == vertex_color::gray && required)
         {
-            throw_cycle_error(it->second.value.get());
+            // SAFETY NET: Log cycles instead of throwing.
+            core::error(
+                u8"package manager",
+                u8"Dependency cycle detected in package: " + name);
+            return;
         }
         else if (color == vertex_color::white)
         {

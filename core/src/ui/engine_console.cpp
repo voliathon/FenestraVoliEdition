@@ -185,8 +185,8 @@ engine_console::process_message(::MSG const& message) noexcept
                         // Force the path to the Windows Temp folder so it is
                         // always easy to find
                         auto export_path =
-                            std::filesystem::temp_directory_path() /
-                            "Windower" / "console_export.txt";
+                            core::instance().settings.user_path.parent_path() /
+                            "console_export.log";
 
                         {
                             std::lock_guard<std::mutex> lock{g_console_mutex};
@@ -213,12 +213,19 @@ engine_console::process_message(::MSG const& message) noexcept
                         }
 
                         if (success)
-                            push_log(
-                                u8"--- Exported to: "
-                                u8"%TEMP%\\Windower\\console_export.txt ---");
+                        {
+                            // Dynamically print the exact path to the console
+                            // so you can see where it went
+                            std::u8string success_msg = u8"--- Exported to: " +
+                                                        export_path.u8string() +
+                                                        u8" ---";
+                            push_log(success_msg);
+                        }
                         else
+                        {
                             push_log(
                                 u8"--- ERROR: Failed to write export file ---");
+                        }
                     }
                     else if (m_input_buffer == u8"help")
                     {

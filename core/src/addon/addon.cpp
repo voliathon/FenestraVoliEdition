@@ -140,6 +140,18 @@ windower::addon::addon(
     lua::call(guard, 0, 0);
 }
 
+windower::addon::~addon()
+{
+    // FIX: Force the Lua state and scheduler to shut down while the addon is
+    // still fully alive! This forces all Lua __gc metamethods (like command
+    // unregisters) to run immediately, ensuring they don't try to access dead
+    // C++ memory later in the destruction chain.
+    m_scheduler.reset();
+    m_root_handle.reset();
+    m_interpreter = lua::interpreter{};
+}
+
+
 std::shared_ptr<windower::package const> windower::addon::find_dependency(
     windower::lua::state s, std::u8string_view package_name) const
 {

@@ -1,0 +1,12 @@
+<package>
+    <name>Debugger</name>
+    <description>Live Lua memory tracking, garbage collection, and safe unloading for the Fenestra engine.</description>
+    <version>1.0.0</version>
+    <type>addon</type>
+    <dependencies>
+        <dependency>ui</dependency>
+        <dependency>chat</dependency>
+        <dependency>command</dependency>
+        <dependency>string</dependency>
+    </dependencies>
+</package>

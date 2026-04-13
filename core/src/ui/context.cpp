@@ -366,6 +366,60 @@ void context::pop_enabled() noexcept
     m_window_stack.back().enabled_stack.pop_back();
 }
 
+style_descriptor context::current_style() const noexcept
+{
+    if (m_window_stack.empty() || m_window_stack.back().style_stack.empty())
+    {
+        return {}; // Return a completely empty/default style if none is active
+    }
+    return m_window_stack.back().style_stack.back();
+}
+
+void context::push_style(style_descriptor const& style) noexcept
+{
+    if (m_window_stack.empty())
+        return;
+
+    auto& stack = m_window_stack.back().style_stack;
+
+    if (stack.empty())
+    {
+        // First style on the stack, just push it directly
+        stack.push_back(style);
+    }
+    else
+    {
+        // CASCADE LOGIC: We merge the new style with the current active style.
+        // If the new style is missing a property (like background_color),
+        // it seamlessly inherits it from the parent.
+        style_descriptor const& current = stack.back();
+        style_descriptor merged         = style;
+
+        if (!merged.text_color)
+            merged.text_color = current.text_color;
+        if (!merged.background_color)
+            merged.background_color = current.background_color;
+        if (!merged.border_color)
+            merged.border_color = current.border_color;
+        if (!merged.opacity)
+            merged.opacity = current.opacity;
+
+        stack.push_back(merged);
+    }
+}
+
+void context::pop_style() noexcept
+{
+    if (m_window_stack.empty())
+        return;
+
+    auto& stack = m_window_stack.back().style_stack;
+    if (!stack.empty())
+    {
+        stack.pop_back();
+    }
+}
+
 rectangle const& context::bounds() const noexcept { return m_bounds; }
 
 void context::bounds(rectangle const& bounds) noexcept { m_bounds = bounds; }

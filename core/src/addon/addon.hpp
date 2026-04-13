@@ -42,7 +42,7 @@ public:
 
     addon(std::shared_ptr<windower::package const> const&);
 
-    virtual ~addon() = default;
+    ~addon();
 
     std::shared_ptr<windower::package const>
         find_dependency(lua::state, std::u8string_view) const override;

@@ -44,12 +44,11 @@
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include <fstream>
-#include <iomanip>
 
 namespace
 {
@@ -324,19 +323,25 @@ windower::crash_handler::write_dump(std::filesystem::path const& path) const
 
 void windower::crash_handler::crash(void* exception) const
 {
-    ::write_dump(m_full_path, m_dump_type, exception);
+    // Redirect the memory dump so it doesn't create files/temp/
+    auto dmp_path = windower_path() / u8"crash.dmp";
+    ::write_dump(dmp_path, m_dump_type, exception);
 
     auto reporter = windower_path() / u8"windower.exe";
-    auto args     = quote_argument(reporter.wstring()) + L" report-crash " +
-                m_full_path_quoted;
 
-    if (auto ptr = static_cast<::EXCEPTION_POINTERS*>(exception))
+    // Pass the new dmp_path to the C# Launcher so it stops throwing
+    // exceptions!
+    auto args = quote_argument(reporter.wstring()) + L" report-crash " +
+                quote_argument(dmp_path.wstring());
+
+if (auto ptr = static_cast<::EXCEPTION_POINTERS*>(exception))
     {
         args.append(L" --signature ");
         args.append(quote_argument(get_signature(*ptr)));
 
-        // --- GENERATE REPORT.MD ---
-        auto report_path = m_path / u8"report.md";
+        // --- GENERATE CRASH.LOG ---
+        // windower_path() points directly to your bin/release/ folder!
+        auto report_path = windower_path() / u8"crash.log";
         std::ofstream report(report_path);
         if (report)
         {
@@ -347,7 +352,7 @@ void windower::crash_handler::crash(void* exception) const
             narrow_sig.reserve(sig.size());
             for (auto const wc : sig)
             {
-                narrow_sig.push_back(static_cast<char>(wc));
+                narrow_sig.push_back(gsl::narrow_cast<char>(wc));
             }
 
             report << "**Signature:** `" << narrow_sig << "`\n\n";
@@ -388,6 +393,109 @@ void windower::crash_handler::crash(void* exception) const
             report << "EIP: 0x" << std::hex << ptr->ContextRecord->Eip << "\n";
 #endif
             report << "```\n";
+
+            // --- C++ CALL STACK GENERATOR ---
+            report << "\n### C++ Call Stack\n";
+            report << "```text\n";
+
+            ::HANDLE process = ::GetCurrentProcess();
+            ::HANDLE thread  = ::GetCurrentThread();
+
+            // Tell DbgHelp to "demangle" the ugly C++ symbols into
+            // human-readable text
+            ::SymSetOptions(
+                SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
+
+            // Explicitly point the Stack Walker at the Windower
+            // directory! Because FFXI is hosted by pol.exe, it was searching
+            // the PlayOnline folder by default.
+            std::string search_path = windower_path().string();
+            ::SymInitialize(process, search_path.c_str(), TRUE);
+
+            ::STACKFRAME64 frame{};
+            frame.AddrPC.Mode    = AddrModeFlat;
+            frame.AddrFrame.Mode = AddrModeFlat;
+            frame.AddrStack.Mode = AddrModeFlat;
+
+            // FIX: Make a complete, isolated copy of the CPU state!
+            // StackWalk64 intentionally modifies this object as it walks
+            // backwards.
+            ::CONTEXT context_copy = *ptr->ContextRecord;
+
+#if defined(_M_IX86) // FFXI is a 32-bit process
+            constexpr auto machine_type = IMAGE_FILE_MACHINE_I386;
+            frame.AddrPC.Offset         = context_copy.Eip;
+            frame.AddrFrame.Offset      = context_copy.Ebp;
+            frame.AddrStack.Offset      = context_copy.Esp;
+#elif defined(_M_X64)
+            constexpr auto machine_type = IMAGE_FILE_MACHINE_AMD64;
+            frame.AddrPC.Offset         = context_copy.Rip;
+            frame.AddrFrame.Offset      = context_copy.Rbp;
+            frame.AddrStack.Offset      = context_copy.Rsp;
+#endif
+
+            char symbol_buffer[sizeof(::SYMBOL_INFO) + 256];
+            auto symbol = reinterpret_cast<::SYMBOL_INFO*>(symbol_buffer);
+            symbol->SizeOfStruct = sizeof(::SYMBOL_INFO);
+            symbol->MaxNameLen   = 255;
+
+            for (int i = 0; i < 32; ++i)
+            {
+                // FIX: Pass '&context_copy' instead of the live
+                // 'ptr->ContextRecord'
+                if (!::StackWalk64(
+                        machine_type, process, thread, &frame, &context_copy,
+                        nullptr, ::SymFunctionTableAccess64,
+                        ::SymGetModuleBase64, nullptr))
+                {
+                    break;
+                }
+
+                if (frame.AddrPC.Offset == 0)
+                    break;
+                ::DWORD64 displacement = 0;
+                if (::SymFromAddr(
+                        process, frame.AddrPC.Offset, &displacement, symbol))
+                {
+                    // Explicitly take the address of the first character
+                    // to prevent implicit array-to-pointer decay (bounds.3)
+                    auto const* name_ptr = &symbol->Name[0];
+                    report << i << ": "
+                           << std::string_view{name_ptr, symbol->NameLen}
+                           << " + 0x" << std::hex << displacement << "\n";
+                }
+                else
+                {
+                    // SILVER BULLET FALLBACK: If the PDB fails, natively query
+                    // the OS for the DLL Name and Offset!
+                    auto const mod =
+                        static_cast<::HMODULE>(windower::module_for(
+                            reinterpret_cast<void*>(frame.AddrPC.Offset)));
+                    if (mod)
+                    {
+                        auto const mod_name = get_module_name(mod);
+                        auto const offset   = frame.AddrPC.Offset -
+                                            std::bit_cast<std::uintptr_t>(mod);
+
+                        std::string narrow_mod;
+                        narrow_mod.reserve(mod_name.size());
+                        for (auto const wc : mod_name)
+                            narrow_mod.push_back(gsl::narrow_cast<char>(wc));
+
+                        report << i << ": " << narrow_mod << " + 0x" << std::hex
+                               << offset << "\n";
+                    }
+                    else
+                    {
+                        report << i << ": [Unknown Module] at 0x" << std::hex
+                               << frame.AddrPC.Offset << "\n";
+                    }
+                }
+            }
+
+            ::SymCleanup(process);
+            report << "```\n";
+            // -------------------------------------
         }
         // --- END REPORT.MD ---
     }
@@ -396,8 +504,8 @@ void windower::crash_handler::crash(void* exception) const
     ::STARTUPINFOW startup_info        = {};
     startup_info.cb                    = sizeof startup_info;
     auto const result                  = ::CreateProcessW(
-                         reporter.c_str(), args.data(), nullptr, nullptr, false, 0, nullptr,
-                         nullptr, &startup_info, &process_info);
+        reporter.c_str(), args.data(), nullptr, nullptr, false, 0, nullptr,
+        nullptr, &startup_info, &process_info);
     if (result)
     {
         ::CloseHandle(process_info.hProcess);
@@ -410,3 +518,4 @@ void windower::crash_handler::crash(void* exception) const
     ::TerminateProcess(handle, EXIT_FAILURE);
     ::WaitForSingleObject(handle, INFINITE);
 }
+

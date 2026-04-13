@@ -241,29 +241,37 @@ ui.display(function()
 
                 layout:height(440):scroll_panel(scroll_view, function(canvas)
                     
-                    for index, pkg in ipairs(state.packages) do
+					for index, pkg in ipairs(state.packages) do
                         if pkg.category == "addon" then
+                            
                             canvas:label(pkg.name .. "  v" .. pkg.version)
                             
-                            local tgl_label = pkg.loaded and "  🟢 Active" or "  ⚪ Offline"
+                            -- Because of your check.cpp C++ patch, this inline tag will now work natively!
+							local tgl_label = pkg.loaded and "  [Active]{color:limegreen weight:bold}" or "  Offline"
                             local clicked, _ = canvas:check("tgl_" .. pkg.id, tgl_label, pkg.loaded)
                             
-                            if clicked then
+                            -- FIX: Only process the click if the package isn't currently locked!
+                            if clicked and not pkg.locked then
+                                pkg.locked = true -- Lock the package state immediately
                                 pkg.loaded = not pkg.loaded
                                 
-                                -- Update the settings library map
                                 if not profile_settings.addons then profile_settings.addons = {} end
                                 profile_settings.addons[pkg.id] = pkg.loaded
                                 
                                 if pkg.loaded then
-                                    core_command.input('/load ' .. pkg.id) 
-                                    chat.success("AddonManager: Loaded '" .. pkg.name .. "'")
+                                    coroutine.schedule(function()
+                                        core_command.input('/load ' .. pkg.id) 
+                                        chat.success("AddonManager: Loaded '" .. pkg.name .. "'")
+                                        pkg.locked = false -- Unlock safely on the next frame
+                                    end)
                                 else
-                                    core_command.input('/unload ' .. pkg.id)
-                                    chat.warning("AddonManager: Unloaded '" .. pkg.name .. "'")
+                                    coroutine.schedule(function()
+                                        core_command.input('/unload ' .. pkg.id)
+                                        chat.warning("AddonManager: Unloaded '" .. pkg.name .. "'")
+                                        pkg.locked = false -- Unlock safely on the next frame
+                                    end)
                                 end
                                 
-                                -- Save the file to the hard drive
                                 settings.save('profiles') 
                             end
 

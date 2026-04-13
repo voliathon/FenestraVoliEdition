@@ -100,11 +100,31 @@ button_state check(
         position.x + 19.f, // 5 + 14 = 19
         position.y + 16.f};
 
+    // ========================================================================
+    // 4. RICH TEXT RENDERING & CASCADING STYLES
+    // ========================================================================
+    
+    auto text_opts = text_rasterization_options{};
+
+    // STEP 1: Ask the new Style Stack if there is a custom color!
+    auto const current_style = ctx.current_style();
+    if (current_style.text_color)
+    {
+        // If Lua pushed a color (like system_green), apply it to the text brush
+        text_opts.fill_color = *current_style.text_color;
+    }
+
+    // STEP 2: Handle Disabled State
+    // If the widget is disabled, force it to be gray, overriding any custom
+    // styles.
+    if (!enabled)
+    {
+        text_opts.fill_color = ctx.system_color(system_color::label_disabled);
+    }
+
+    // Paint the text to the screen using our new styled brush
     primitive::text(
-        ctx, {position.x + 25.f, position.y + 1.f},
-        text_layout, // Shift text right
-        {.fill_color = ctx.system_color(
-             enabled ? system_color::label : system_color::label_disabled)});
+        ctx, {position.x + 25.f, position.y + 1.f}, text_layout, text_opts);
 
     primitive::set_texture(ctx, ctx.skin());
 

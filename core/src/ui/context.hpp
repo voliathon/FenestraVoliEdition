@@ -26,6 +26,7 @@
 #define WINDOWER_UI_CONTEXT_HPP
 
 #include "hooks/ffximain.hpp"
+#include "ui/color.hpp"
 #include "ui/command_buffer.hpp"
 #include "ui/cursor.hpp"
 #include "ui/data_buffer.hpp"
@@ -60,6 +61,7 @@
 #include <string_view>
 #include <tuple>
 #include <vector>
+#include <optional>
 
 namespace windower::ui
 {
@@ -111,6 +113,16 @@ enum class system_cursor : std::int8_t
     south_west_alt = 15,
     west_alt       = 16,
     north_west_alt = 17,
+};
+
+struct style_descriptor
+{
+    std::optional<color> text_color;
+    std::optional<color> background_color;
+    std::optional<color> border_color;
+    std::optional<float> opacity;
+
+    // We can expand this later with padding, fonts, and border-radius!
 };
 
 class context
@@ -203,11 +215,17 @@ public:
 
     color system_color(system_color color) const noexcept;
 
-    bool enabled() const noexcept;
+bool enabled() const noexcept;
     void enabled(bool enabled) noexcept;
     void push_enabled(bool enabled) noexcept;
     void push_enabled() noexcept;
     void pop_enabled() noexcept;
+
+    // --- NEW STYLING SYSTEM ---
+    style_descriptor current_style() const noexcept;
+    void push_style(style_descriptor const& style) noexcept;
+    void pop_style() noexcept;
+    // --------------------------
 
     transform current_transform() const noexcept;
     void push_transform(transform const& transform) noexcept;
@@ -279,6 +297,7 @@ private:
         std::vector<vector> offset_stack;
         std::vector<rectangle> clip_stack;
         std::vector<bool> enabled_stack;
+        std::vector<style_descriptor> style_stack;
         bool fully_clipped = false;
     };
 

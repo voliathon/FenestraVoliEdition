@@ -123,7 +123,7 @@ void log_worker()
 
             ::OutputDebugStringW(msg.text.c_str());
 
-            // --- SEND TO IN-GAME UI CONSOLE ---
+// --- SEND TO IN-GAME UI CONSOLE ---
             auto u8_text = windower::to_u8string(msg.text);
             // Strip trailing newlines so we don't get double-spacing in the UI
             while (!u8_text.empty() &&
@@ -131,7 +131,14 @@ void log_worker()
             {
                 u8_text.pop_back();
             }
-            windower::ui::engine_console::push_log(u8_text);
+
+            // The background log thread MUST NOT directly modify the UI
+            // buffer! Hand the text safely back to the main FFXI thread via the
+            // mutex-locked queue.
+            windower::core::instance().run_on_next_frame(
+                [text = std::move(u8_text)]() {
+                    windower::ui::engine_console::push_log(text);
+                });
         }
         local_queue.clear();
     }
