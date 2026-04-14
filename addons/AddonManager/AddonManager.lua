@@ -15,7 +15,7 @@ local math = require('math')
 local addon = {
     name = 'AddonManager',
     author = 'Voliathon of Bahamut',
-    version = '1.2'
+    version = '1.3'
 }
 
 -- ============================================================================
@@ -37,6 +37,9 @@ local state = {
     readme_title = "Readme",
     readme_content = "",
     current_character = "Global", 
+    show_official_addons = true,    -- Opens automatically
+    show_third_party_addons = false, 
+    show_dev_tools = false, 
     show_dependencies = false 
 }
 
@@ -109,20 +112,41 @@ local scroll_view_content_height = 360
 local scroll_view = ui.scroll_panel_state(430, scroll_view_content_height)
 
 local function update_scroll_canvas()
-    local required_height = 50 
-    for _, pkg in ipairs(state.packages) do
-        if pkg.category == "addon" then 
-            required_height = required_height + 65 
-        end
-    end
-    if state.show_dependencies then
-        required_height = required_height + 50 
+    local required_height = 10 
+
+    -- Accordion Headers take ~30px space each (4 headers = 120px)
+    
+    required_height = required_height + 30
+    if state.show_official_addons then
         for _, pkg in ipairs(state.packages) do
-            if pkg.category ~= "addon" then 
-                required_height = required_height + 60 
-            end
+            if pkg.group == "official" then required_height = required_height + 65 end
         end
     end
+    required_height = required_height + 20 -- Spacer
+    
+    required_height = required_height + 30
+    if state.show_third_party_addons then
+        for _, pkg in ipairs(state.packages) do
+            if pkg.group == "third_party" then required_height = required_height + 65 end
+        end
+    end
+    required_height = required_height + 20 
+
+    required_height = required_height + 30
+    if state.show_dev_tools then
+        for _, pkg in ipairs(state.packages) do
+            if pkg.group == "dev" then required_height = required_height + 65 end
+        end
+    end
+    required_height = required_height + 20 
+
+    required_height = required_height + 30
+    if state.show_dependencies then
+        for _, pkg in ipairs(state.packages) do
+            if pkg.group == "core" or pkg.group == "dependency" then required_height = required_height + 60 end
+        end
+    end
+
     local final_height = math.max(360, required_height)
     if final_height ~= scroll_view_content_height then
         scroll_view_content_height = final_height
@@ -163,8 +187,14 @@ local function scan_packages()
             local pkg_name = raw_name:match("^%s*(.-)%s*$")
             local exact_version = pkg_version:match("^%s*([%d%.]+)") or pkg_version 
             
+            local is_dev = false
+            local is_official = false
+            if pkg_name == "config" then is_official = true end 
+
             if version_cache[pkg_path] then
                 exact_version = version_cache[pkg_path]
+                is_dev = version_cache[pkg_path .. "_dev"] or false
+                is_official = version_cache[pkg_path .. "_off"] or is_official
             else
                 local manifest_file = file.new(pkg_path .. "\\manifest.xml")
                 if manifest_file:exists() then
@@ -172,23 +202,43 @@ local function scan_packages()
                     if content then
                         local raw_v = content:match("<version>%s*(.-)%s*</version>")
                         if raw_v then exact_version = raw_v end
+                        
+                        -- Parse description for tags
+                        local raw_desc = content:match("<description>%s*(.-)%s*</description>")
+                        if raw_desc then
+                            if raw_desc:match("^%[DEV%]") then is_dev = true end
+                            if raw_desc:match("^%[OFFICIAL%]") then is_official = true end
+                        end
                     end
                 end
                 version_cache[pkg_path] = exact_version
+                version_cache[pkg_path .. "_dev"] = is_dev
+                version_cache[pkg_path .. "_off"] = is_official
             end
             
             local cat = "addon"
+            local grp = "third_party"
+
             if pkg_name == "FenestraSDK" or pkg_name == "AddonManager" then
                 cat = "core"
+                grp = "core"
             elseif pkg_path:find("[\\/]libs[\\/]") or 
                    pkg_name:match("_service$") or 
                    pkg_name:match("_data$") or 
                    pkg_name == "mime" or 
                    pkg_name == "socket" then
                 cat = "dependency"
+                grp = "dependency"
+            else
+                if is_dev then
+                    grp = "dev"
+                elseif is_official then
+                    grp = "official"
+                else
+                    grp = "third_party"
+                end
             end
 
-            -- Natively reads from the settings library!
             local is_loaded = (profile_settings.addons and profile_settings.addons[pkg_name] == true)
             
             table.insert(state.packages, {
@@ -198,7 +248,8 @@ local function scan_packages()
                 path = pkg_path,
                 has_readme = (has_readme_str == "1"), 
                 loaded = is_loaded,
-                category = cat
+                category = cat,
+                group = grp
             })
         end
     end
@@ -213,7 +264,7 @@ end
 -- 5. UI RENDERING 
 -- ============================================================================
 local market_window = ui.window_state()
-market_window.title = "Addon Manager"
+market_window.title = "Addon Manager    |    ACTIVE PROFILE: " .. state.current_character:upper()
 market_window.size = {width = 450, height = 550}
 market_window.resizable = false
 market_window.visible = false
@@ -225,6 +276,77 @@ readme_window.resizable = false
 readme_window.visible = false
 local readme_scroll = ui.scroll_panel_state(580, 460)
 
+-- Centralized rendering logic to keep the scroll loop clean
+local function draw_package(canvas, pkg)
+    if pkg.group == "core" or pkg.group == "dependency" then
+        canvas:label(pkg.name .. "  v" .. pkg.version, ui.color.system_gray)
+        
+        if pkg.group == "core" then
+            canvas:label("  🔒 CORE SYSTEM", ui.color.system_white)
+        else
+            canvas:label("  [ LIBRARY ]", ui.color.system_disabled)
+        end
+        
+        if pkg.has_readme then
+            local clicked_readme = canvas:button("btn_rm_" .. pkg.id, "📄 ReadMe", false)
+            if clicked_readme then
+                state.readme_title = pkg.name .. " Readme"
+                local raw_text = core_windower.get_package_readme(pkg.id) or ""
+                state.readme_content = parse_markdown_to_windower(raw_text)
+                
+                local dynamic_h = calculate_readme_height(raw_text)
+                readme_scroll = ui.scroll_panel_state(580, dynamic_h)
+                
+                state.show_readme = true
+            end
+        end
+        canvas:space(20) 
+    else
+        canvas:label(pkg.name .. "  v" .. pkg.version)
+        
+        local tgl_label = pkg.loaded and "  [Active]{color:limegreen weight:bold}" or "  Offline"
+        local clicked, _ = canvas:check("tgl_" .. pkg.id, tgl_label, pkg.loaded)
+        
+        if clicked and not pkg.locked then
+            pkg.locked = true 
+            pkg.loaded = not pkg.loaded
+            
+            if not profile_settings.addons then profile_settings.addons = {} end
+            profile_settings.addons[pkg.id] = pkg.loaded
+            
+            if pkg.loaded then
+                coroutine.schedule(function()
+                    core_command.input('/load ' .. pkg.id) 
+                    chat.success("AddonManager: Loaded '" .. pkg.name .. "'")
+                    pkg.locked = false 
+                end)
+            else
+                coroutine.schedule(function()
+                    core_command.input('/unload ' .. pkg.id)
+                    chat.warning("AddonManager: Unloaded '" .. pkg.name .. "'")
+                    pkg.locked = false 
+                end)
+            end
+            settings.save('profiles') 
+        end
+
+        if pkg.has_readme then
+            local clicked_readme = canvas:button("btn_rm_" .. pkg.id, "📄 ReadMe", false)
+            if clicked_readme then
+                state.readme_title = pkg.name .. " Readme"
+                local raw_text = core_windower.get_package_readme(pkg.id) or ""
+                state.readme_content = parse_markdown_to_windower(raw_text)
+                
+                local dynamic_h = calculate_readme_height(raw_text)
+                readme_scroll = ui.scroll_panel_state(580, dynamic_h)
+                
+                state.show_readme = true
+            end
+        end
+        canvas:space(25) 
+    end
+end
+
 ui.display(function()
     local success, err = pcall(function()
 
@@ -234,101 +356,63 @@ ui.display(function()
             
             local window_still_open = ui.window(market_window, function(layout)
                 
-                layout:label("ACTIVE PROFILE: " .. state.current_character:upper(), ui.color.skin_accent)
-                layout:space(5)
-                layout:label("──────────────────────────────────────────", ui.color.system_gray)
                 layout:space(5)
 
                 layout:height(440):scroll_panel(scroll_view, function(canvas)
                     
-					for index, pkg in ipairs(state.packages) do
-                        if pkg.category == "addon" then
-                            
-                            canvas:label(pkg.name .. "  v" .. pkg.version)
-                            
-                            -- Because of your check.cpp C++ patch, this inline tag will now work natively!
-							local tgl_label = pkg.loaded and "  [Active]{color:limegreen weight:bold}" or "  Offline"
-                            local clicked, _ = canvas:check("tgl_" .. pkg.id, tgl_label, pkg.loaded)
-                            
-                            -- FIX: Only process the click if the package isn't currently locked!
-                            if clicked and not pkg.locked then
-                                pkg.locked = true -- Lock the package state immediately
-                                pkg.loaded = not pkg.loaded
-                                
-                                if not profile_settings.addons then profile_settings.addons = {} end
-                                profile_settings.addons[pkg.id] = pkg.loaded
-                                
-                                if pkg.loaded then
-                                    coroutine.schedule(function()
-                                        core_command.input('/load ' .. pkg.id) 
-                                        chat.success("AddonManager: Loaded '" .. pkg.name .. "'")
-                                        pkg.locked = false -- Unlock safely on the next frame
-                                    end)
-                                else
-                                    coroutine.schedule(function()
-                                        core_command.input('/unload ' .. pkg.id)
-                                        chat.warning("AddonManager: Unloaded '" .. pkg.name .. "'")
-                                        pkg.locked = false -- Unlock safely on the next frame
-                                    end)
-                                end
-                                
-                                settings.save('profiles') 
-                            end
-
-                            if pkg.has_readme then
-                                local clicked_readme = canvas:button("btn_rm_" .. pkg.id, "📄 ReadMe", false)
-                                if clicked_readme then
-                                    state.readme_title = pkg.name .. " Readme"
-                                    local raw_text = core_windower.get_package_readme(pkg.id) or ""
-                                    state.readme_content = parse_markdown_to_windower(raw_text)
-                                    
-                                    local dynamic_h = calculate_readme_height(raw_text)
-                                    readme_scroll = ui.scroll_panel_state(580, dynamic_h)
-                                    
-                                    state.show_readme = true
-                                end
-                            end
-                            canvas:space(25) 
+                    -- Section 1: Official Addons
+                    local clk_off, _ = canvas:check("chk_off", "Official Addons", state.show_official_addons)
+                    if clk_off then state.show_official_addons = not state.show_official_addons; update_scroll_canvas() end
+                    
+                    if state.show_official_addons then
+                        canvas:space(10)
+                        for _, pkg in ipairs(state.packages) do
+                            if pkg.group == "official" then draw_package(canvas, pkg) end
                         end
                     end
                     
                     canvas:space(10)
                     canvas:label("──────────────────────────────────────────", ui.color.system_gray)
                     canvas:space(5)
+
+                    -- Section 2: Third-Party Addons
+                    local clk_3p, _ = canvas:check("chk_3p", "Third-Party Addons", state.show_third_party_addons)
+                    if clk_3p then state.show_third_party_addons = not state.show_third_party_addons; update_scroll_canvas() end
                     
-                    local clicked_dep, _ = canvas:check("chk_dep_toggle", "Core Systems & Libraries", state.show_dependencies)
-                    if clicked_dep then 
-                        state.show_dependencies = not state.show_dependencies 
-                        update_scroll_canvas()
+                    if state.show_third_party_addons then
+                        canvas:space(10)
+                        for _, pkg in ipairs(state.packages) do
+                            if pkg.group == "third_party" then draw_package(canvas, pkg) end
+                        end
                     end
+
+                    canvas:space(10)
+                    canvas:label("──────────────────────────────────────────", ui.color.system_gray)
+                    canvas:space(5)
+
+                    -- Section 3: Developer Tools
+                    local clk_dev, _ = canvas:check("chk_dev", "Developer Tools", state.show_dev_tools)
+                    if clk_dev then state.show_dev_tools = not state.show_dev_tools; update_scroll_canvas() end
+                    
+                    if state.show_dev_tools then
+                        canvas:space(10)
+                        for _, pkg in ipairs(state.packages) do
+                            if pkg.group == "dev" then draw_package(canvas, pkg) end
+                        end
+                    end
+
+                    canvas:space(10)
+                    canvas:label("──────────────────────────────────────────", ui.color.system_gray)
+                    canvas:space(5)
+
+                    -- Section 4: Core Systems & Libraries
+                    local clk_dep, _ = canvas:check("chk_dep", "Core Systems & Libraries", state.show_dependencies)
+                    if clk_dep then state.show_dependencies = not state.show_dependencies; update_scroll_canvas() end
                     
                     if state.show_dependencies then
                         canvas:space(10)
-                        for index, pkg in ipairs(state.packages) do
-                            if pkg.category == "core" or pkg.category == "dependency" then
-                                canvas:label(pkg.name .. "  v" .. pkg.version, ui.color.system_gray)
-                                
-                                if pkg.category == "core" then
-                                    canvas:label("  🔒 CORE SYSTEM", ui.color.system_white)
-                                else
-                                    canvas:label("  [ LIBRARY ]", ui.color.system_disabled)
-                                end
-                                
-                                if pkg.has_readme then
-                                    local clicked_readme = canvas:button("btn_rm_" .. pkg.id, "📄 ReadMe", false)
-                                    if clicked_readme then
-                                        state.readme_title = pkg.name .. " Readme"
-                                        local raw_text = core_windower.get_package_readme(pkg.id) or ""
-                                        state.readme_content = parse_markdown_to_windower(raw_text)
-                                        
-                                        local dynamic_h = calculate_readme_height(raw_text)
-                                        readme_scroll = ui.scroll_panel_state(580, dynamic_h)
-                                        
-                                        state.show_readme = true
-                                    end
-                                end
-                                canvas:space(20) 
-                            end
+                        for _, pkg in ipairs(state.packages) do
+                            if pkg.group == "core" or pkg.group == "dependency" then draw_package(canvas, pkg) end
                         end
                     end
                     
