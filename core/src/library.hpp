@@ -64,7 +64,7 @@ public:
         get_function(u8zstring_view name)
     const noexcept
     {
-        GSL_SUPPRESS(type.1)
+        GSL_SUPPRESS("type.1")
         {
             return reinterpret_cast<std::remove_pointer_t<F>*>(
                 get_function(name));

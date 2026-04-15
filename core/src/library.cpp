@@ -111,5 +111,5 @@ void (*windower::library::get_function(u8zstring_view name) const noexcept)()
 {
     auto const view = to_zstring_view(name);
     auto ptr        = ::GetProcAddress(*this, view.c_str());
-    WINDOWER_SUPPRESS(type.1) { return reinterpret_cast<void (*)()>(ptr); }
+    WINDOWER_SUPPRESS("type.1") { return reinterpret_cast<void (*)()>(ptr); }
 }

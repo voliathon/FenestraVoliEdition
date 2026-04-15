@@ -197,10 +197,11 @@ public:
 private:
     trampoline m_trampoline = {};
 
-    GSL_SUPPRESS(f.23) static R
+    GSL_SUPPRESS("f.23")
+    static R
         __fastcall thunk(T* object, pointer_type callback, A... args) noexcept
     {
-        GSL_SUPPRESS(f.23) { return callback(object, args...); }
+        GSL_SUPPRESS("f.23") { return callback(object, args...); }
     }
 };
 

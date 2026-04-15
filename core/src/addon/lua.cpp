@@ -171,7 +171,7 @@ extern "C"
         auto const buffer =
             static_cast<windower::lua::reader*>(context)->read();
         *size = buffer.size();
-        GSL_SUPPRESS(type.1)
+        GSL_SUPPRESS("type.1")
         {
             return reinterpret_cast<char const*>(buffer.data());
         }
@@ -468,7 +468,7 @@ void windower::lua::push(stack_guard const& s, std::u8string_view value)
 
 void windower::lua::push(stack_guard const& s, std::span<std::byte const> value)
 {
-    GSL_SUPPRESS(type.1)
+    GSL_SUPPRESS("type.1")
     {
         auto const ptr  = reinterpret_cast<char const*>(value.data());
         auto const size = value.size();
@@ -506,7 +506,7 @@ void windower::lua::push(
     set_metatable(s, -2);
     try
     {
-        [[gsl::suppress(r .11)]] new (ptr) std::function<int(state)>{value};
+        [[gsl::suppress("r.11")]] new (ptr) std::function<int(state)>{value};
     }
     catch (...)
     {
@@ -764,7 +764,7 @@ void windower::lua::load(
                 return {};
             }
 
-            GSL_SUPPRESS(type.1)
+            GSL_SUPPRESS("type.1")
             {
                 auto ptr        = reinterpret_cast<char*>(m_buffer.data());
                 auto const size = m_buffer.size();
@@ -807,8 +807,7 @@ std::u8string_view windower::lua::detail::get_string_view(state s, int index)
         std::size_t size;
         if (auto ptr = ::lua_tolstring(unsafe::unwrap(s), index, &size))
         {
-            // HACK: I don't think this is legal?
-            GSL_SUPPRESS(type.1)
+            GSL_SUPPRESS("type.1")
             {
                 return {reinterpret_cast<char8_t const*>(ptr), size};
             }

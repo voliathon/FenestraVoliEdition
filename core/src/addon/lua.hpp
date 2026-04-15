@@ -699,7 +699,7 @@ U* create(stack_guard const& s, A&&... args)
     auto ptr = create_userdata(s, sizeof(U));
     push_metatable<U>(s);
     set_metatable(s, -2);
-    GSL_SUPPRESS(r.3) { return new (ptr) U{std::forward<A>(args)...}; }
+    GSL_SUPPRESS("r.3") { return new (ptr) U{std::forward<A>(args)...}; }
 }
 
 template<typename T, typename U>

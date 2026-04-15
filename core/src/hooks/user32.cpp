@@ -264,7 +264,7 @@ void set_window_properties(::HWND hwnd)
             if (SUCCEEDED(reinterpret_cast<SHGetPropertyStoreForWindow>(ptr)(
                     hwnd, IID_PPV_ARGS(properties.put()))))
             {
-                GSL_SUPPRESS(type.7)
+                GSL_SUPPRESS("type.7")
                 {
                     ::PROPVARIANT value{};
                     if (SUCCEEDED(::InitPropVariantFromString(

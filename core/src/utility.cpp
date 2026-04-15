@@ -235,7 +235,7 @@ std::string_view windower::to_string_view(std::u8string_view value) noexcept
 {
     static_assert(char_is_ascii());
 
-    [[gsl::suppress(type .1)]]
+    [[gsl::suppress("type.1")]]
     {
         return {reinterpret_cast<char const*>(value.data()), value.size()};
     }
@@ -245,7 +245,7 @@ windower::zstring_view windower::to_zstring_view(u8zstring_view value) noexcept
 {
     static_assert(char_is_ascii());
 
-    [[gsl::suppress(type .1)]]
+    [[gsl::suppress("type.1")]]
     {
         return {reinterpret_cast<char const*>(value.data()), value.size()};
     }

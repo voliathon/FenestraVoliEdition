@@ -677,8 +677,13 @@ std::strong_ordering windower::command_manager::descriptor::operator<=>(
     descriptor const& other) const noexcept
 {
     auto const result = command.compare(other.command);
-    return result != 0 ? result <=> 0
-                       : component.compare(other.component) <=> 0;
+
+    if (result != 0)
+    {
+        return result <=> 0;
+    }
+
+    return component.compare(other.component) <=> 0;
 }
 
 windower::command_manager::name_view::name_view(
@@ -711,8 +716,19 @@ std::weak_ordering windower::command_manager::name_view::operator<=>(
     name_view const& other) const noexcept
 {
     auto const result = command.compare(other.command);
-    return result != 0 ? result <=> 0
-         : !component || !other.component
-             ? std::weak_ordering::equivalent
-             : component->compare(*other.component) <=> 0;
+
+    // If the commands are not equal, return their ordering
+    if (result != 0)
+    {
+        return result <=> 0;
+    }
+
+    // If either component is missing, treat them as equivalent
+    if (!component || !other.component)
+    {
+        return std::weak_ordering::equivalent;
+    }
+
+    // Otherwise, compare the components safely
+    return component->compare(*other.component) <=> 0;
 }

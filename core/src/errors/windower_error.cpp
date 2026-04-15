@@ -66,7 +66,7 @@ windower::windower_error::windower_error(std::u8string_view message) :
 
 char const* windower::windower_error::what() const noexcept
 {
-    GSL_SUPPRESS(type.1)
+    GSL_SUPPRESS("type.1")
     {
         return reinterpret_cast<char const*>(m_error_code->c_str());
     }

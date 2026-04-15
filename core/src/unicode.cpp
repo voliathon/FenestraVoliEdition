@@ -239,9 +239,9 @@ to_sjis_string(std::wstring_view str, client_language client_language) noexcept
 char32_t next_code_point(std::u8string_view str, std::size_t& offset) noexcept
 {
     auto result = U'\uFFFD';
-    GSL_SUPPRESS(bounds.1)
-    GSL_SUPPRESS(bounds.2)
-    GSL_SUPPRESS(bounds.4)
+    GSL_SUPPRESS("bounds.1")
+    GSL_SUPPRESS("bounds.2")
+    GSL_SUPPRESS("bounds.4")
     if (offset < str.size())
     {
         U8_NEXT_OR_FFFD(str.data(), offset, str.size(), result);
@@ -252,8 +252,8 @@ char32_t next_code_point(std::u8string_view str, std::size_t& offset) noexcept
 char32_t next_code_point(std::wstring_view str, std::size_t& offset) noexcept
 {
     auto result = U'\uFFFD';
-    GSL_SUPPRESS(bounds.1)
-    GSL_SUPPRESS(type.5)
+    GSL_SUPPRESS("bounds.1")
+    GSL_SUPPRESS("type.5")
     if (offset < str.size())
     {
         U16_NEXT_OR_FFFD(str.data(), offset, str.size(), result);
@@ -299,16 +299,20 @@ void append(std::u8string& str, char32_t code_point) noexcept
 {
     auto offset = str.size();
     str.resize(offset + U8_LENGTH(code_point));
-    GSL_SUPPRESS(bounds.1)
-    GSL_SUPPRESS(con.4) { U8_APPEND_UNSAFE(str.data(), offset, code_point); }
+    GSL_SUPPRESS("bounds.1")
+    GSL_SUPPRESS("con.4") {
+        U8_APPEND_UNSAFE(str.data(), offset, code_point); }
 }
 
 void append(std::wstring& str, char32_t code_point) noexcept
 {
     auto offset = str.size();
     str.resize(offset + U16_LENGTH(code_point));
-    GSL_SUPPRESS(bounds.1)
-    GSL_SUPPRESS(con.4) { U16_APPEND_UNSAFE(str.data(), offset, code_point); }
+    GSL_SUPPRESS("bounds.1")
+    GSL_SUPPRESS("con.4")
+    {
+        U16_APPEND_UNSAFE(str.data(), offset, code_point);
+    }
 }
 
 void append(
